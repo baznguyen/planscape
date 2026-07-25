@@ -4,6 +4,8 @@ import { useStore, type ItemKind, type Surface } from '@/store/useStore';
 import { ROOMS, roomById } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
 import PaintTab from './PaintTab';
+import ReviewSection from './ReviewPanel';
+import RoomPanel from './RoomPanel';
 
 import { ASSETS, assetsIn } from '@/lib/model/assets';
 
@@ -31,7 +33,7 @@ function finishChoices(surface: Surface): string[] {
 export default function Toolbox() {
   const s = useStore();
   const open = s.drawer === 'tools';
-  const [tab, setTab] = useState<'place' | 'finish' | 'paint'>('place');
+  const [tab, setTab] = useState<'place' | 'finish' | 'paint' | 'room' | 'check'>('place');
   const [surface, setSurface] = useState<Surface>('floor');
   const file = useRef<HTMLInputElement>(null);
 
@@ -54,10 +56,13 @@ export default function Toolbox() {
         data-tip="Add & finish">{open ? '✕' : '✚'}</button>
 
       <section className={`toolbox ${open ? 'open' : ''}`}>
-        <div className="tbTabs">
+        {/* one drawer holds everything, so nothing can stack on anything else */}
+        <div className="tbTabs wrap">
           <button className={tab === 'place' ? 'on' : ''} onClick={() => setTab('place')}>Add</button>
           <button className={tab === 'finish' ? 'on' : ''} onClick={() => setTab('finish')}>Finish</button>
           <button className={tab === 'paint' ? 'on' : ''} onClick={() => setTab('paint')}>Paint</button>
+          <button className={tab === 'room' ? 'on' : ''} onClick={() => setTab('room')}>Room</button>
+          <button className={tab === 'check' ? 'on' : ''} onClick={() => setTab('check')}>Check</button>
         </div>
 
         {tab === 'place' && (
@@ -103,6 +108,15 @@ export default function Toolbox() {
         )}
 
         {tab === 'paint' && <PaintTab />}
+
+        {tab === 'room' && (
+          <div className="tbBody">
+            {room ? <RoomPanel id={room.id} />
+              : <div className="mini hint">Tap a room in the scene</div>}
+          </div>
+        )}
+
+        {tab === 'check' && <div className="tbBody"><ReviewSection /></div>}
 
         {tab === 'finish' && (
           <div className="tbBody">

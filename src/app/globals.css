@@ -424,3 +424,66 @@ main{position:fixed;inset:0}
 /* the stats strip took the rail's old row */
 .rail{top:104px}
 .railToggle{top:104px}
+
+/* ============================================================
+   One drawer, no stacking
+   Everything that was a separate floating modal — analysis, review,
+   room detail — now lives as a tab inside the toolbox. The only other
+   floating surface is the overlay rail, and it is given its own lane.
+============================================================ */
+.panel{display:none}          /* analysis modal retired */
+.review{display:none}
+
+/* genuinely transparent: you should always see the model through a control */
+:root{--sf:rgba(255,255,255,.44);--sf2:rgba(255,255,255,.52);--sfs:rgba(255,255,255,.62)}
+.toolbox,.rail,.seg,.ib,.brand,.sun,.railToggle,.toolTab,.ambInline,.statStrip,.pad{
+  background:var(--sf2);
+  backdrop-filter:blur(22px) saturate(1.6);-webkit-backdrop-filter:blur(22px) saturate(1.6)}
+.toolbox .ph.static{background:var(--sfs)}
+.tbTabs button{background:rgba(255,255,255,.35)}
+.tbItem,.chip,.amb{background:rgba(255,255,255,.38)}
+.btn{background:rgba(255,255,255,.5)}
+.placeHint{background:rgba(24,32,44,.78);backdrop-filter:blur(8px)}
+
+/* five tabs need two rows at this width */
+.toolbox .tbTabs.wrap button{flex:1 0 28%;margin-bottom:3px}
+
+/* ------------------------------------------------------------
+   Desktop lanes
+------------------------------------------------------------ */
+.rail{top:104px;left:11px}
+.toolTab{left:11px;top:auto;bottom:74px}
+.toolbox{left:53px;bottom:74px;top:auto}
+
+/* ------------------------------------------------------------
+   Mobile: header stacks, then ONE tab row, then the drawer.
+   Nothing shares a coordinate with anything else.
+------------------------------------------------------------ */
+@media (max-width: 780px){
+  .top{padding:8px 10px 6px;gap:5px;flex-wrap:wrap}
+  .brand{flex:1 1 100%;order:-2}
+  .seg.ico{order:-1}
+  .ambInline{order:0;flex:1 1 100%;justify-content:space-between}
+  .ambInline .amb{flex:1}
+
+  /* the two drawer tabs get their own row under the header */
+  .railToggle{top:auto;bottom:auto;left:10px;top:152px;width:36px;height:36px}
+  .toolTab{left:54px;top:152px;bottom:auto;width:36px;height:36px}
+
+  /* and the drawers open below them, never over them */
+  .rail{top:196px;left:10px;right:auto;max-height:calc(100vh - 380px);overflow-y:auto}
+  .toolbox{top:196px;bottom:auto;left:10px;right:10px;width:auto;
+   max-height:calc(100vh - 380px)}
+  .toolbox .tbGrid{grid-template-columns:repeat(6,1fr)}
+  .toolbox .tbTabs.wrap button{flex:1 0 18%}
+
+  /* pad clear of the stats strip and the timelapse */
+  .walkPad{bottom:126px;right:10px}
+  .statStrip{bottom:62px;left:8px;right:8px}
+  .sun{bottom:8px}
+}
+@media (max-width: 780px) and (orientation: landscape){
+  .rail,.toolbox{top:118px;max-height:calc(100vh - 200px)}
+  .railToggle,.toolTab{top:78px}
+  .walkPad{bottom:70px}
+}
