@@ -1,0 +1,241 @@
+// Multi-tenant SaaS schema. Tenancy is org-scoped; every row that matters
+// carries orgId so row-level isolation is enforceable at the query layer.
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+enum Role { OWNER ADMIN ENGINEER CLIENT CONTRACTOR VIEWER }
+enum ProjectStage { DESIGN DOCUMENTATION PRECONSTRUCTION CONSTRUCTION COMPLETE }
+enum FindingStatus { PASS FAIL REVIEW NA }
+enum ReviewState { QUEUED RUNNING COMPLETE FAILED }
+
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("trial")
+  createdAt DateTime @default(now())
+  members   Membership[]
+  projects  Project[]
+  invites   Invite[]
+}
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  members   Membership[]
+}
+model Membership {
+  id     String @id @default(cuid())
+  org    Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId  String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  role   Role   @default(VIEWER)
+  @@unique([orgId, userId])
+  @@index([orgId])
+}
+/** Time-boxed access link — how a client or trade gets in without a seat. */
+model Invite {
+  id         String   @id @default(cuid())
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId      String
+  email      String
+  role       Role     @default(CLIENT)
+  projectId  String?
+  token      String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+  @@index([orgId])
+}
+model Project {
+  id           String   @id @default(cuid())
+  org          Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  name         String
+  address      String?
+  country      String                       // ISO — drives StandardsPack resolution
+  region       String?                      // state / province / AHJ
+  lat          Float?
+  lon          Float?
+  climateZone  String?
+  stage        ProjectStage @default(DESIGN)
+  buildCost    Float?
+  createdAt    DateTime @default(now())
+  models       BuildingModel[]
+  reviews      Review[]
+  @@index([orgId])
+  @@index([country, region])
+}
+/** Versioned geometry + materials. Never mutate; always append a version. */
+model BuildingModel {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  version   Int      @default(1)
+  source    String   @default("manual")     // manual | pdf | ifc | dwg
+  data      Json                             // rooms, walls, openings, materials
+  createdAt DateTime @default(now())
+  @@unique([projectId, version])
+}
+/** A validation / VE / AI-panel run. Async so heavy jobs leave the request path. */
+model Review {
+  id         String      @id @default(cuid())
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  kind       String                          // validation | ve | ai-panel
+  state      ReviewState @default(QUEUED)
+  packId     String?                         // which StandardsPack was applied
+  result     Json?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime    @default(now())
+  findings   Finding[]
+  @@index([projectId])
+}
+model Finding {
+  id         String        @id @default(cuid())
+  review     Review        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId   String
+  checkId    String
+  title      String
+  clause     String
+  discipline String
+  severity   String
+  status     FindingStatus
+  roomId     String?
+  measured   String?
+  required   String?
+  note       String?
+  @@index([reviewId])
+}
+
+// ---------------------------------------------------------------------------
+// Collaboration, variations and finishes
+// ---------------------------------------------------------------------------
+enum Trade { BUILDER ELECTRICIAN PLUMBER HVAC CARPENTER TILER PAINTER GLAZIER LANDSCAPER JOINER INTERIOR_DESIGNER ENGINEER OTHER }
+enum VariationState { DRAFT SUBMITTED PRICING QUOTED APPROVED REJECTED WITHDRAWN }
+enum SurfaceKind { WALL FLOOR CEILING JOINERY FIXTURE EXTERNAL }
+
+/** A fork is a named branch of a BuildingModel — "Option B: dark kitchen". */
+model Fork {
+  id         String   @id @default(cuid())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  parentId   String?                        // fork of a fork
+  name       String
+  summary    String?
+  baseModelId String
+  isPrimary  Boolean  @default(false)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  finishes   FinishAssignment[]
+  variations Variation[]
+  @@index([projectId])
+}
+/** A finish the customer can apply — from the schedule, or an uploaded image. */
+model Finish {
+  id         String   @id @default(cuid())
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId      String
+  name       String
+  category   String                          // paint | tile | brick | timber | stone | fixture | lighting
+  source     String   @default("schedule")   // schedule | upload | supplier
+  supplier   String?
+  productCode String?
+  hexColor   String?
+  imageUrl   String?                          // uploaded swatch / texture
+  unitCost   Float?
+  unit       String?                          // m2 | each | lm
+  /** physical properties so a finish change re-runs the solvers */
+  properties Json?                            // { rho, alpha, U, kappa }
+  createdAt  DateTime @default(now())
+  assignments FinishAssignment[]
+  @@index([orgId, category])
+}
+/** Applies a finish to a surface: one wall, a whole room, or the whole house. */
+model FinishAssignment {
+  id        String      @id @default(cuid())
+  fork      Fork        @relation(fields: [forkId], references: [id], onDelete: Cascade)
+  forkId    String
+  finish    Finish      @relation(fields: [finishId], references: [id])
+  finishId  String
+  kind      SurfaceKind
+  scope     String                            // 'surface' | 'room' | 'floor' | 'house'
+  targetId  String?                           // wallId / roomId / floor index; null = house
+  areaM2    Float?
+  createdAt DateTime    @default(now())
+  @@index([forkId])
+}
+/** A requested change. Routed to the responsible trade automatically. */
+model Variation {
+  id          String         @id @default(cuid())
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  fork        Fork?          @relation(fields: [forkId], references: [id])
+  forkId      String?
+  ref         String                          // VAR-001
+  title       String
+  description String
+  discipline  String                          // lighting | plumbing | finishes | structural | hvac
+  trade       Trade                           // derived from discipline, overridable
+  state       VariationState @default(DRAFT)
+  costDelta   Float?
+  timeDeltaDays Int?
+  requestedBy String
+  assignedTo  String?
+  createdAt   DateTime       @default(now())
+  decidedAt   DateTime?
+  comments    Comment[]
+  events      ChangeEvent[]
+  @@index([projectId, state])
+  @@index([trade])
+}
+/** Threaded discussion on a project, fork or variation. */
+model Comment {
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  variation   Variation? @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  variationId String?
+  parentId    String?                         // threading
+  authorId    String
+  authorRole  Role
+  body        String
+  /** pin a comment to geometry so it lands in the right place in 3D */
+  anchorType  String?                         // room | wall | opening | fixture
+  anchorId    String?
+  createdAt   DateTime @default(now())
+  @@index([projectId])
+  @@index([variationId])
+}
+/** Immutable audit log. Never updated, only appended. */
+model ChangeEvent {
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  variation   Variation? @relation(fields: [variationId], references: [id])
+  variationId String?
+  actorId     String
+  actorRole   Role
+  action      String                          // created | state_changed | finish_applied | fork_created | commented
+  entity      String
+  entityId    String
+  before      Json?
+  after       Json?
+  at          DateTime @default(now())
+  @@index([projectId, at])
+}
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String?
+  kind      String                            // variation_assigned | comment_reply | fork_shared
+  subject   String
+  body      String
+  emailedAt DateTime?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, readAt])
+}
