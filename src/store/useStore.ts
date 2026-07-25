@@ -53,6 +53,8 @@ interface S {
   resetNonce: number;
   /** true = standing inside at eye height; false = doll's-house overview */
   eyeLevel: boolean;
+  /** only one floating drawer at a time — they share the same corner on a phone */
+  drawer: 'rail' | 'tools' | 'review' | null;
   finishes: Record<string, Partial<Record<Surface, Finish>>>;
   setView:(v:ViewMode)=>void; setFloor:(f:0|1)=>void;
   setMonth:(m:number)=>void; setMinutes:(m:number)=>void; togglePlay:()=>void;
@@ -72,6 +74,7 @@ interface S {
   setFinish:(roomId:string,surface:Surface,f:Finish|null)=>void;
   clearFinishes:(roomId?:string)=>void;
   setWalkInput:(f:number,s:number)=>void; resetView:()=>void; toggleEyeLevel:()=>void;
+  setDrawer:(d:'rail'|'tools'|'review'|null)=>void;
 }
 const seedLights = (): Light[] => {
   const out: Light[] = [];
@@ -103,7 +106,7 @@ export const useStore = create<S>((set, get) => ({
   thermal: {}, thermalDetail: {}, outdoorT: 25,
   selectedRoom: null, hoverRoom: null, showRoof: true, fov: 72,
   items: [], placing: null, finishes: {},
-  walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false,
+  walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false, drawer: null,
 
   setView: v => set({ view: v, showRoof: v === 'plan' ? false : get().showRoof,
     eyeLevel: v === 'plan' ? false : get().eyeLevel }),
@@ -148,6 +151,7 @@ export const useStore = create<S>((set, get) => ({
   setWalkInput: (f, s2) => set({ walkInput: { f, s: s2 } }),
   resetView: () => set(st => ({ resetNonce: st.resetNonce + 1, eyeLevel: false })),
   toggleEyeLevel: () => set(st => ({ eyeLevel: !st.eyeLevel })),
+  setDrawer: d => set(st => ({ drawer: st.drawer === d ? null : d })),
 
   setPlacing: p => set({ placing: p }),
   /** Drop whatever is armed at a point on the floor. Routed to the right collection. */

@@ -28,7 +28,7 @@ const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2,'0')}:${Stri
 export default function Ui() {
   const s = useStore();
   const [panelOpen, setPanelOpen] = useState(true);
-  const [railOpen, setRailOpen] = useState(false);
+  const railOpen = s.drawer === 'rail';
   useEffect(() => { s.resettleThermal(); /* eslint-disable-next-line */ }, []);
   // Start collapsed on phones so the model, not the read-out, owns the first screen.
   // Set after mount to keep server and client markup identical.
@@ -72,7 +72,7 @@ export default function Ui() {
         <button className="ib" data-tip="Reset the view" onClick={s.resetView}>⌖</button>
       </header>
 
-      <button className="railToggle" onClick={() => setRailOpen(o => !o)} aria-label="Overlays">
+      <button className="railToggle" onClick={() => s.setDrawer('rail')} aria-label="Overlays">
         {railOpen ? '✕' : '☰'}</button>
       <aside className={`rail ${railOpen ? 'open' : ''}`}>
         <div className="cap">Overlays</div>

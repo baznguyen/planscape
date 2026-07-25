@@ -230,6 +230,22 @@ export function runPeerReview(): ReviewReport {
       planValue: `${(p.required * 1000).toFixed(0)} mm min`,
     });
   }
+  for (const d of circ.blockedDoors) {
+    findings.push({
+      id: `c_block_${d.openingId}`, discipline: 'circulation', severity: 'major',
+      title: `Door ${d.openingId} has nowhere to swing`,
+      detail: d.detail,
+      reference: 'AS 1428.1 — clear space at doorways',
+    });
+  }
+  if (circ.blockedDoors.length === 0) {
+    findings.push({
+      id: 'c_swing', discipline: 'circulation', severity: 'pass',
+      title: 'Every door has clear space to swing',
+      detail: 'No door opens into a wall, a cupboard face or a fixture. Furniture is laid out around the swing zones rather than through them.',
+      reference: 'AS 1428.1 — clear space at doorways',
+    });
+  }
   for (const d of circ.narrowDoors) {
     findings.push({
       id: `c_door_${d.openingId}`, discipline: 'circulation', severity: 'minor',

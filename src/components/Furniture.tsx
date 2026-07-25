@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { ROOMS, GEOM, STAIRS, roomHeight, roomCentre, type Room } from '@/lib/model/building';
+import { doorZones, blockedFraction } from '@/lib/model/clearance';
 import { useStore } from '@/store/useStore';
 
 const y0 = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
@@ -140,6 +141,21 @@ function layout(r: Room): Item[] {
   const c = roomCentre(r), w = r.x1 - r.x0, d = r.z1 - r.z0, out: Item[] = [];
   const f = r.fixtures;
   const along = w >= d;
+  const zones = doorZones(r.floor);
+  /**
+   * Nothing may stand in a door's swing. Anchors are tried in order and the
+   * first clear one wins; if a piece cannot be placed clear anywhere it is
+   * dropped rather than left blocking the door. The same zones are what the
+   * reviewer checks against, so a regression here shows up as a finding.
+   */
+  const place = (el: JSX.Element, cands: [number, number, number][], fw: number, fd: number) => {
+    for (const [x, z, ry] of cands) {
+      const swap = Math.abs(Math.abs(ry) - Math.PI / 2) < 0.4;
+      const hw = (swap ? fd : fw) / 2, hd = (swap ? fw : fd) / 2;
+      const fp = { x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd };
+      if (blockedFraction(fp, zones) < 0.06) { out.push({ el, x, z, ry }); return; }
+    }
+  };
   const add = (el: JSX.Element, x: number, z: number, ry = 0) => out.push({ el, x, z, ry });
   if (f.includes('rug')) add(<Rug w={Math.min(3.2,w*0.6)} d={Math.min(2.4,d*0.55)}/>, c.x, c.z);
   const sofas = f.filter(x => x === 'sofa').length;
@@ -150,11 +166,27 @@ function layout(r: Room): Item[] {
   if (f.includes('tv')) add(<Tv size={r.use==='living'?65:55}/>, along?c.x:r.x1-0.35, along?r.z0+0.35:c.z, along?0:-Math.PI/2);
   if (f.includes('dining')) add(<Dining len={Math.min(2.2, (along?w:d)*0.45)}/>,
     along?c.x+w*0.18:c.x, along?c.z:c.z+d*0.18, along?0:Math.PI/2);
-  if (f.includes('bed')) add(<Bed w={r.id==='f_pri'?1.8:1.5}/>, c.x, c.z+0.25);
-  if (f.includes('robe')) add(<Robe len={Math.min(1.9, (along?w:d)*0.55)}/>,
-    along?c.x:r.x1-0.35, along?r.z1-0.35:c.z, along?Math.PI:-Math.PI/2);
-  if (f.includes('desk')) add(<Desk/>, r.x1-0.8, r.z0+0.6, -Math.PI/2);
-  if (f.includes('fridge')) add(<Fridge/>, r.x1-0.6, r.z0+0.5);
+  if (f.includes('bed')) {
+    const bw = r.id === 'f_pri' ? 1.8 : 1.5;
+    place(<Bed w={bw}/>, [[c.x, c.z+0.25, 0], [c.x, c.z-0.25, 0],
+      [c.x, r.z1-1.2, 0], [c.x, r.z0+1.2, 0], [c.x, c.z, 0]], bw, 2.1);
+  }
+  if (f.includes('robe')) {
+    const rl = Math.min(1.9, (along ? w : d) * 0.55);
+    place(<Robe len={rl}/>, [
+      [along ? c.x : r.x1 - 0.35, along ? r.z1 - 0.35 : c.z, along ? Math.PI : -Math.PI / 2],
+      [along ? c.x : r.x0 + 0.35, along ? r.z0 + 0.35 : c.z, along ? 0 : Math.PI / 2],
+      [r.x1 - 0.35, r.z0 + rl / 2 + 0.2, -Math.PI / 2],
+      [r.x0 + 0.35, r.z1 - rl / 2 - 0.2, Math.PI / 2],
+      [r.x0 + rl / 2 + 0.2, r.z1 - 0.35, Math.PI],
+      [r.x1 - rl / 2 - 0.2, r.z0 + 0.35, 0],
+    ], rl, 0.62);
+  }
+  if (f.includes('desk')) place(<Desk/>, [
+    [r.x1-0.8, r.z0+0.6, -Math.PI/2], [r.x0+0.8, r.z1-0.6, Math.PI/2],
+    [r.x0+0.8, r.z0+0.6, -Math.PI/2], [r.x1-0.8, r.z1-0.6, Math.PI/2]], 1.4, 0.7);
+  if (f.includes('fridge')) place(<Fridge/>, [
+    [r.x1-0.6, r.z0+0.5, 0], [r.x0+0.6, r.z0+0.5, 0], [r.x1-0.6, r.z1-0.5, 0]], 0.8, 0.75);
   if (f.includes('oven')) add(<Oven/>, r.x0+0.45, r.z0+0.4);
   if (r.use === 'kitchen') { add(<Island len={Math.min(2.8,w*0.6)}/>, c.x, c.z+1.0);
     add(<Bench len={Math.min(4.0,w*0.8)} uppers/>, c.x, r.z0+0.35); }

@@ -310,3 +310,28 @@ main{position:fixed;inset:0}
   /* when the analysis panel is expanded it takes the lower half — tuck the pad up */
   .panel:not(.collapsed) ~ .walkPad{bottom:calc(34vh + 96px)}
 }
+
+/* ============================================================
+   Dimension strings — invert against a night scene
+============================================================ */
+.dimChip.night{background:rgba(14,20,32,.88);color:#ffe9bd;border-color:rgba(255,217,138,.55);
+ box-shadow:0 1px 6px rgba(0,0,0,.5)}
+.dimChip.night.area{border-color:rgba(255,217,138,.4)}
+.dimChip.night.area b{color:#ffd98a}
+.dimChip.night i{opacity:.75}
+
+/* walkthrough pad — glass, not a solid slab */
+.pad{background:rgba(255,255,255,.40);border-color:rgba(20,28,40,.14)}
+.pad:hover{background:rgba(255,255,255,.58)}
+.pad.mid{background:rgba(255,255,255,.30)}
+.walkPad{opacity:.92}
+.walkPad:hover{opacity:1}
+
+/* the three drawers share a corner on mobile — only one is ever open now,
+   and each sits clear of the others' tabs */
+@media (max-width: 780px){
+  .rail{top:170px}
+  .toolTab{top:124px;left:10px}
+  .reviewTab{top:124px;left:52px}
+  .toolbox,.review{top:170px;bottom:auto;left:8px;right:8px;max-height:46vh}
+}

@@ -8,6 +8,7 @@
  * wall-position check will ever notice.
  */
 import { ROOMS, WALLS, ALL_OPENINGS, STAIRS, roomById, type Room } from '@/lib/model/building';
+import { doorZones, DOOR_CLEAR_DEPTH } from '@/lib/model/clearance';
 
 /** NCC / AS 1428.1 figures used below. */
 export const CIRCULATION_RULES = {
@@ -79,6 +80,8 @@ export interface CirculationResult {
   pinchPoints: { room: Room; clear: number; required: number; cause: string }[];
   /** doors too narrow for the room they serve */
   narrowDoors: { openingId: string; room: string; width: number; required: number }[];
+  /** doors whose keep-clear zone falls outside the rooms they join */
+  blockedDoors: { openingId: string; detail: string }[];
   entry: string;
 }
 
@@ -141,5 +144,28 @@ export function analyseCirculation(): CirculationResult {
       narrowDoors.push({ openingId: o.id, room: served.name, width: o.w, required: CIRCULATION_RULES.doorClearWidth });
     }
   }
-  return { reachable, unreachable, pinchPoints, narrowDoors, entry };
+  // A door needs floor on both sides to swing into. If its keep-clear zone lands
+  // mostly outside every room, the door opens into a wall or a cupboard face.
+  const blockedDoors: CirculationResult['blockedDoors'] = [];
+  for (const z of doorZones(0).concat(doorZones(1))) {
+    const id = z.label.split(' ')[0];
+    const o = ALL_OPENINGS.find(x => x.id === id);
+    if (!o || o.kind === 'garage') continue;
+    const sides = [o.a, o.b].filter(Boolean) as string[];
+    if (sides.length < 2) continue;                    // external door, outside is clear
+    for (const sid of sides) {
+      const r = roomById(sid);
+      if (!r) continue;
+      // depth of room available on this side of the opening, along the swing axis
+      const horizontal = Math.abs(z.x1 - z.x0) > Math.abs(z.z1 - z.z0);
+      const avail = horizontal
+        ? Math.max(0, Math.min(r.z1, o.z + DOOR_CLEAR_DEPTH) - Math.max(r.z0, o.z - DOOR_CLEAR_DEPTH))
+        : Math.max(0, Math.min(r.x1, o.x + DOOR_CLEAR_DEPTH) - Math.max(r.x0, o.x - DOOR_CLEAR_DEPTH));
+      if (avail < DOOR_CLEAR_DEPTH * 0.55) {
+        blockedDoors.push({ openingId: o.id,
+          detail: `${r.name} gives only ${(avail * 1000).toFixed(0)} mm in front of ${o.id}; a door needs ${(DOOR_CLEAR_DEPTH * 1000).toFixed(0)} mm to swing.` });
+      }
+    }
+  }
+  return { reachable, unreachable, pinchPoints, narrowDoors, blockedDoors, entry };
 }

@@ -43,7 +43,7 @@ const FINISH_CHOICES: Record<Surface, string[]> = {
 
 export default function Toolbox() {
   const s = useStore();
-  const [open, setOpen] = useState(false);
+  const open = s.drawer === 'tools';
   const [tab, setTab] = useState<'place' | 'finish'>('place');
   const [surface, setSurface] = useState<Surface>('floor');
   const file = useRef<HTMLInputElement>(null);
@@ -63,7 +63,7 @@ export default function Toolbox() {
 
   return (
     <>
-      <button className={`toolTab ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)}
+      <button className={`toolTab ${open ? 'on' : ''}`} onClick={() => s.setDrawer('tools')}
         data-tip="Add & finish">{open ? '✕' : '✚'}</button>
 
       <section className={`toolbox ${open ? 'open' : ''}`}>

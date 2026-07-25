@@ -145,8 +145,15 @@ function Openings() {
   })}</>;
 }
 function Dimensions() {
-  const { floor, overlays } = useStore();
+  const { floor, overlays, month, minutes } = useStore();
   const walls = WALLS.filter(w => w.floor === floor);
+  // Contrast against whatever the sky is doing. Gold-on-pale reads at midday and
+  // vanishes at midnight, so the whole string inverts as the sun goes down.
+  const alt = solarState(month, minutes).alt;
+  const night = alt <= 0;
+  const dusk = alt > 0 && alt < 0.18;
+  const lineColour = night ? '#ffd98a' : dusk ? '#7a4a12' : '#8a5f1f';
+  const chipClass = night ? 'dimChip night' : 'dimChip';
   /**
    * Proper dimension strings: one per wall, offset clear of the wall on the
    * outward side, with witness lines and ticks. Drawn with depthTest off at
@@ -190,18 +197,19 @@ function Dimensions() {
   return (
     <group renderOrder={45}>
       <lineSegments geometry={geom} frustumCulled={false}>
-        <lineBasicMaterial color="#b8873f" transparent opacity={0.95} depthTest={false} fog={false} />
+        <lineBasicMaterial color={lineColour} transparent opacity={night ? 1 : 0.95}
+          depthTest={false} fog={false} toneMapped={false} />
       </lineSegments>
       {labels.map((l, i) => (
         <Html key={i} position={[l.x, y + 0.02, l.z]} center distanceFactor={17} zIndexRange={[14, 0]}>
-          <div className="dimChip">{l.mm.toLocaleString()}</div>
+          <div className={chipClass}>{l.mm.toLocaleString()}</div>
         </Html>
       ))}
       {ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
         const c = roomCentre(r);
         return (
           <Html key={r.id} position={[c.x, y + 0.02, c.z]} center distanceFactor={15} zIndexRange={[13, 0]}>
-            <div className="dimChip area">{r.name}<b>{roomArea(r).toFixed(1)} m²</b>
+            <div className={`${chipClass} area`}>{r.name}<b>{roomArea(r).toFixed(1)} m²</b>
               <i>{(r.x1 - r.x0).toFixed(2)} × {(r.z1 - r.z0).toFixed(2)} m</i></div>
           </Html>
         );

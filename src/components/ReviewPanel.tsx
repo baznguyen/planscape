@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { runPeerReview, type Severity } from '@/lib/review/peerReview';
+import { useStore } from '@/store/useStore';
 
 const TONE: Record<Severity, string> = {
   critical: 'bd', major: 'bd', minor: 'wn', pass: 'ok',
@@ -14,14 +15,16 @@ const WORD: Record<Severity, string> = {
  * against the drawing, never against the model itself.
  */
 export default function ReviewPanel() {
-  const [open, setOpen] = useState(false);
+  const drawer = useStore(st => st.drawer);
+  const setDrawer = useStore(st => st.setDrawer);
+  const open = drawer === 'review';
   const [showPassed, setShowPassed] = useState(false);
   const report = useMemo(() => runPeerReview(), []);
   const shown = report.findings.filter(f => showPassed || f.severity !== 'pass');
 
   return (
     <>
-      <button className={`reviewTab ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)}
+      <button className={`reviewTab ${open ? 'on' : ''}`} onClick={() => setDrawer('review')}
         data-tip="Drawing review">
         {open ? '✕' : <><i>✓</i><b>{report.score.toFixed(1)}</b></>}
       </button>
