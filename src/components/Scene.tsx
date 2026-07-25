@@ -353,7 +353,9 @@ function TargetRig() {
       camera.position.set(px, base + EYE, pz);
       controls.target.set(px + dir.x * 4, base + EYE * 0.95, pz + dir.z * 4);
     } else if (view === 'street') {
-      controls.target.set(20, 3, 5.5); camera.position.set(46, 7, 5.5);
+      // three-quarter view from the kerb, inside the street trees rather than
+      // behind them, and low enough to read the two storeys against each other
+      controls.target.set(25.5, 2.8, 5.0); camera.position.set(38.5, 5.6, -3.5);
     } else if (view === 'plan') {
       controls.target.set(14, base + 1, 5.5); camera.position.set(14, 26, 26);
     } else {

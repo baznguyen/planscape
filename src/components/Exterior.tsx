@@ -2,7 +2,9 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
-import { GEOM } from '@/lib/model/building';
+import { GEOM, ALL_OPENINGS, WALLS } from '@/lib/model/building';
+import { LEVELS, CLADDING, CLADDING_BANDS } from '@/lib/model/facade';
+import Roof from './Roof';
 import { useStore } from '@/store/useStore';
 
 const M = { brick:'#e6d9c8', render:'#f2efe8', clad:'#e2ddd2', roof:'#b9bec3', wood:'#c2a074',
@@ -36,34 +38,114 @@ const Neighbour = ({ x,z,w,d,h,ry }: { x:number;z:number;w:number;d:number;h:num
   </group>);
 
 /** The subject dwelling as built massing, with the plan's real facade materials. */
+/**
+ * The subject dwelling, built from the elevation sheets.
+ *
+ * Storeys are set by the surveyed RLs rather than by a nominal ceiling height,
+ * cladding comes from the elevation KEY block, and every opening is the one in
+ * the model's own schedule — so a window moved on the plan moves on the facade
+ * too, instead of the two drifting apart.
+ */
 function Subject() {
-  const { H0, H1, LEN, WID } = GEOM;
+  const { LEN, WID } = GEOM;
+  const F1 = { x0: 6.6, x1: 27.58, z0: 0.72, z1: 10.28 };
+  const g = CLADDING;
+
+  /** One storey of one face, in its scheduled cladding. */
+  const Face = ({ face, storey }: { face: 'N'|'S'|'E'|'W'; storey: 0|1 }) => {
+    const y0 = storey === 0 ? LEVELS.groundFfl : LEVELS.firstFfl;
+    const y1 = storey === 0 ? LEVELS.groundFcl : LEVELS.firstFcl;
+    const h = y1 - y0;
+    const bands = CLADDING_BANDS.filter(b => b.face === face && b.storey === storey);
+    const box = storey === 0
+      ? { x0: 6.6, x1: 28.03, z0: 0, z1: WID }
+      : F1;
+    const along = face === 'N' || face === 'S' ? box.x1 - box.x0 : box.z1 - box.z0;
+    return (<group>
+      {bands.map((b, i) => {
+        const len = along * (b.to - b.from);
+        const mid = (face === 'N' || face === 'S')
+          ? box.x0 + along * (b.from + b.to) / 2
+          : box.z0 + along * (b.from + b.to) / 2;
+        const m = g[b.material];
+        const p: [number, number, number] =
+          face === 'N' ? [mid, y0 + h / 2, box.z1] :
+          face === 'S' ? [mid, y0 + h / 2, box.z0] :
+          face === 'E' ? [box.x1, y0 + h / 2, mid] : [box.x0, y0 + h / 2, mid];
+        const w = (face === 'N' || face === 'S') ? len : 0.22;
+        const d = (face === 'N' || face === 'S') ? 0.22 : len;
+        return <Box key={i} w={w} h={h} d={d} c={m.colour} p={p} info={m.label} />;
+      })}
+    </group>);
+  };
+
+  /** Openings punched into the facade from the model's own schedule. */
+  const Glazing = () => (<group>
+    {ALL_OPENINGS.filter(o => {
+      const w = WALLS.find(x => x.id === o.wallId);
+      return w?.external || o.kind === 'garage';
+    }).map(o => {
+      const w = WALLS.find(x => x.id === o.wallId);
+      const horiz = w ? Math.abs(w.z1 - w.z2) < 1e-6 : true;
+      const base = o.floor === 0 ? LEVELS.groundFfl : LEVELS.firstFfl;
+      const y = base + o.sill + o.h / 2;
+      const isGlass = o.kind === 'window' || o.kind === 'slider';
+      const col = o.kind === 'garage' ? M.wood : isGlass ? M.glass : M.wood;
+      // Push the sash out to the OUTER face of the cladding. Left on the wall
+      // centreline it sits inside the 220 mm build-up and is invisible from the
+      // street, which is exactly why the facade read blank.
+      const cx = 17.3, cz = GEOM.WID / 2;
+      const off = 0.13;
+      const ox = horiz ? 0 : Math.sign(o.x - cx) * off;
+      const oz = horiz ? Math.sign(o.z - cz) * off : 0;
+      return (
+        <group key={o.id}>
+          <Box w={horiz ? o.w : 0.05} h={o.h} d={horiz ? 0.05 : o.w}
+            c={col} p={[o.x + ox, y, o.z + oz]} edge={false}
+            info={`${o.kind} ${(o.w * 1000).toFixed(0)} × ${(o.h * 1000).toFixed(0)}`} />
+          {[o.h / 2 + 0.045, -o.h / 2 - 0.045].map((dy, k) => (
+            <Box key={k} w={horiz ? o.w + 0.14 : 0.09} h={0.09} d={horiz ? 0.09 : o.w + 0.14}
+              c={M.render} p={[o.x + ox, y + dy, o.z + oz]} edge={false} />
+          ))}
+          {[-1, 1].map(sgn => (
+            <Box key={sgn} w={horiz ? 0.08 : 0.09} h={o.h + 0.18} d={horiz ? 0.09 : 0.08}
+              c={M.render} edge={false}
+              p={[o.x + ox + (horiz ? sgn * (o.w / 2 + 0.04) : 0), y,
+                  o.z + oz + (horiz ? 0 : sgn * (o.w / 2 + 0.04))]} />
+          ))}
+        </group>
+      );
+    })}
+  </group>);
+
   return (<group>
-    <Box w={21.64} h={H0} d={WID} c={M.brick} p={[17.32,H0/2,5.5]} info="Ground floor — face brick as selected"/>
-    <Box w={18.8} h={H1} d={9.56} c={M.clad} p={[16.0,H0+H1/2,5.5]} info="First floor — render + grid panel cladding"/>
-    <Box w={21.8} h={0.35} d={11.2} c={M.roof} p={[17.32,H0+H1+0.2,5.5]} info="Colorbond roof — 12.6° pitch"/>
-    <Box w={18.8} h={0.5} d={9.56} c={M.render} p={[16.0,H0+H1+0.3,5.5]} info="Parapet"/>
-    <Box w={0.3} h={H0+H1} d={2.0} c={M.render} p={[28.12,(H0+H1)/2,2.4]} info="Rendered entry pier"/>
-    <Box w={0.12} h={2.143} d={4.81} c={M.wood} p={[28.09,1.07,8.6]} info="Panel lift garage door 4810 × 2143"/>
-    <Box w={0.1} h={2.34} d={1.1} c={M.wood} p={[28.09,1.17,5.0]} info="Front entry door"/>
-    <Box w={2.13} h={0.16} d={3.0} c={M.render} p={[29.1,H0,5.0]} info="Porch roof"/>
-    {[3.6,6.4].map(z=><Box key={z} w={0.14} h={H0} d={0.14} c={M.render} p={[29.9,H0/2,z]} info="Porch post"/>)}
-    <Box w={1.2} h={0.14} d={3.7} c={M.render} p={[28.7,H0+0.02,4.85]} info="Cantilevered balcony 4.44 m²"/>
-    <mesh position={[29.28,H0+0.55,4.85]} rotation={[0,Math.PI/2,0]}>
-      <boxGeometry args={[3.7,1.0,0.04]}/>
-      <meshStandardMaterial color={M.glass} transparent opacity={0.3} roughness={0.05}/></mesh>
-    <Box w={1.5} h={0.12} d={3.9} c={M.roof} p={[28.7,H0+H1,4.85]} info="Feature cantilevered awning"/>
-    {/* glazing to each elevation */}
-    {[1.6,3.9,6.2,8.5].map(z=>(<group key={`e${z}`}>
-      <Box w={0.05} h={1.25} d={1.5} c={M.glass} p={[28.10,1.55,z]} edge={false} info="Window"/>
-      <Box w={0.05} h={1.25} d={1.5} c={M.glass} p={[25.36,H0+1.45,z]} edge={false} info="Window"/></group>))}
-    {[8,11,14,17,20,23].map(x=>(<group key={`n${x}`}>
-      <Box w={1.5} h={1.25} d={0.05} c={M.glass} p={[x,1.55,10.97]} edge={false} info="Window"/>
-      <Box w={1.5} h={1.25} d={0.05} c={M.glass} p={[x,1.55,0.03]} edge={false} info="Window"/>
-      <Box w={1.5} h={1.25} d={0.05} c={M.glass} p={[x,H0+1.45,10.25]} edge={false} info="Window"/>
-      <Box w={1.5} h={1.25} d={0.05} c={M.glass} p={[x,H0+1.45,0.75]} edge={false} info="Window"/></group>))}
+    {(['N','S','E','W'] as const).map(f => (
+      <group key={f}><Face face={f} storey={0} /><Face face={f} storey={1} /></group>
+    ))}
+    <Glazing />
+    <Roof />
+
+    {/* porch: piers, roof and the entry threshold */}
+    <Box w={2.1} h={0.16} d={3.0} c={M.render} p={[27.0, LEVELS.groundFcl, 5.0]} info="Porch roof" />
+    {[3.7, 6.3].map(z => (
+      <Box key={z} w={0.2} h={LEVELS.groundFcl} d={0.2} c={M.render}
+        p={[27.9, LEVELS.groundFcl / 2, z]} info="Rendered porch pier" />
+    ))}
+    {/* cantilevered balcony, 4.44 m2, with a glass balustrade */}
+    <Box w={1.5} h={0.16} d={3.1} c={M.render} p={[26.8, LEVELS.firstFfl - 0.08, 4.5]}
+      info="Cantilevered balcony 4.44 m²" />
+    <mesh position={[27.55, LEVELS.firstFfl + 0.5, 4.5]} rotation={[0, Math.PI / 2, 0]}>
+      <boxGeometry args={[3.1, 1.0, 0.04]} />
+      <meshStandardMaterial color={M.glass} transparent opacity={0.3} roughness={0.05} /></mesh>
+
+    {/* downpipes at the corners, as the elevations show */}
+    {[[6.7, 0.15], [6.7, 10.85], [27.9, 0.15], [27.9, 10.85]].map(([x, z], i) => (
+      <Box key={i} w={0.09} h={LEVELS.firstFcl} d={0.09} c={M.metal}
+        p={[x, LEVELS.firstFcl / 2, z]} edge={false} info="90 mm downpipe" />
+    ))}
   </group>);
 }
+
 /** Landscaping — visible from the street AND through the windows from inside. */
 export function Garden() {
   const shrubs = useMemo(() => {
@@ -90,7 +172,7 @@ export function Garden() {
     {Array.from({length:12}).map((_,i)=>(
       <mesh key={`h${i}`} position={[33.6,0.45,-1+i*1.1]} castShadow><boxGeometry args={[0.55,0.9,1.02]}/>
         <meshStandardMaterial color={M.hedge} roughness={1}/></mesh>))}
-    <Tree x={31.5} z={1.6} h={5.4}/><Tree x={31.8} z={10.6} h={6.0}/>
+    <Tree x={31.5} z={13.2} h={5.4}/><Tree x={31.8} z={-2.6} h={6.0}/>
     <Tree x={-7.5} z={1.6} h={5.2}/><Tree x={-7.8} z={9.4} h={5.6}/>
     <Tree x={12} z={14.0} h={5.4}/><Tree x={21} z={-3.6} h={5.2}/>
   </group>);

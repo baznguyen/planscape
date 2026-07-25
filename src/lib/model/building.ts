@@ -58,7 +58,9 @@ export interface Opening {
 }
 
 export const SITE = { lat: -33.8686, lon: 150.9648, tz: 10, groundAzimuthOffset: 0 };
-export const GEOM = { LEN: 28.14, WID: 11.0, H0: 2.72, H1: 2.59, F1Y: 3.05, WT: 0.11 };
+// H0 and F1Y are the surveyed RLs off the elevations: FFL 16,490 to FCL 19,230
+// is 2,740, and FFL 19,530 is 3,040 above ground FFL.
+export const GEOM = { LEN: 28.14, WID: 11.0, H0: 2.74, H1: 2.59, F1Y: 3.04, WT: 0.11 };
 
 const R = (
   id:string,name:string,floor:0|1,x0:number,x1:number,z0:number,z1:number,

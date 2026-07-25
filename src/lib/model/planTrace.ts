@@ -40,7 +40,7 @@ export const CERTIFIED_ENVELOPE = {
   groundWidth: 11.0,
   firstLength: 21.64,    // 9,175 + 2,410 + 1,310 + 1,210 + 5,885 + 480 + 1,080 + 90
   firstWidth: 9.56,
-  ceilingGround: 2.72,   // FFL 16,490 -> FCL 19,230
+  ceilingGround: 2.74,   // FFL 16,490 -> FCL 19,230
   ceilingFirst: 2.59,    // FFL 19,530 -> FCL 22,120
 } as const;
 
