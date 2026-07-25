@@ -487,3 +487,57 @@ main{position:fixed;inset:0}
   .railToggle,.toolTab{top:78px}
   .walkPad{bottom:70px}
 }
+
+/* ============================================================
+   Icon assets, custom colour entry, and drawer stacking order
+============================================================ */
+
+/* Asset tiles hold a line drawing now, so they need to centre an svg rather
+   than a glyph, and the stroke has to follow the selected state. */
+.tbItem i{font-style:normal;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.tbItem i svg{display:block}
+.tbItem.on i{color:#fff}
+
+/* Ambience joined the segmented groups, so it drops its own chrome entirely.
+   Six icons in one segment is wide — trim the padding so the header still fits
+   the address chip beside it. */
+.seg.ico button{padding:5px 8px}
+.top .seg.ico button svg{width:15px;height:15px}
+
+/* The drawer is the thing you are actively working in; the walk pad is a
+   background control. When they meet, the drawer wins. */
+.toolbox,.review{z-index:16}
+.toolTab,.reviewTab{z-index:17}
+.walkPad{z-index:12}
+
+/* Custom colour: a swatch, a native picker, and a typed value that accepts
+   hex or rgb(). The chip carries the computed LRV so the number a specifier
+   actually cares about is visible before the colour is applied. */
+.cust{display:flex;align-items:center;gap:4px;margin:3px 0}
+.cust input[type=color]{width:26px;height:24px;padding:0;border:1px solid var(--ln2);
+ border-radius:6px;background:none;cursor:pointer;flex:none}
+.cchip{flex:none;width:26px;height:24px;border-radius:6px;border:1px solid var(--ln2);
+ display:flex;align-items:center;justify-content:center}
+.cchip em{font-style:normal;font-size:7.5px;font-weight:700}
+.txt{flex:1;min-width:0;font:inherit;font-size:9.5px;padding:4px 6px;border-radius:6px;
+ border:1px solid var(--ln);background:rgba(255,255,255,.5);color:var(--ink)}
+.txt::placeholder{color:var(--ink3)}
+.txt:focus{outline:none;border-color:var(--ac)}
+.txt.find{width:100%;margin:2px 0 4px}
+
+/* A derived swatch is marked, because an indicative colour must never be
+   mistaken for a measured one on a specification. */
+.swatch.aprx::before{content:'';position:absolute;top:2px;right:2px;width:3px;height:3px;
+ border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.swatch{position:relative}
+
+/* The rail's section captions were stretching its box wider than the icon
+   column, which is what put the drawer over the top of "OPENINGS". Pin the
+   column to the icon width and let the caption live inside it. */
+.rail{width:38px;align-items:center}
+.rail .cap{width:100%;text-align:center;font-size:7px;letter-spacing:.2px;line-height:1.1}
+.rail .ib svg{display:block}
+
+/* While the drawer is open you are placing or specifying, not walking. Fade the
+   pad rather than hiding it, so the controls stay where muscle memory expects. */
+.toolbox.open ~ .walkPad{opacity:.3}

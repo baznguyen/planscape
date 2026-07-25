@@ -7,6 +7,7 @@ import PaintTab from './PaintTab';
 import ReviewSection from './ReviewPanel';
 
 import { ASSETS, assetsIn } from '@/lib/model/assets';
+import { ASSET_ICON } from './ui/icons';
 
 const GROUPS: { group: string; category: Parameters<typeof assetsIn>[0] }[] = [
   { group: 'Audio', category: 'audio' },
@@ -82,7 +83,7 @@ export default function Toolbox() {
                         s.setPlacing(arm);
                         if (arm) s.setDrawer(null);   // get out of the way of the tap
                       }}>
-                      <i>{a.icon}</i>
+                      <i>{ASSET_ICON[a.id] ?? a.icon}</i>
                     </button>
                   ))}
                 </div>

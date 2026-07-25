@@ -13,17 +13,17 @@ import { roomWallReflectance } from '@/lib/model/paint';
 import Toolbox from './Toolbox';
 import ReviewSection from './ReviewPanel';
 import WalkPad from './WalkPad';
+import { AMB_ICONS, OVERLAY_ICON } from './ui/icons';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const OVERLAYS: [OverlayKey, string, string][] = [
-  ['thermal','Thermal — live heat map','🌡'], ['dims','Dimensions & areas','📐'],
-  ['light','Lighting — lux & beams','💡'], ['audio','Acoustics — SPL waves','🔊'],
-  ['air','Natural airflow','💨'], ['hvac','Air conditioning','❄'],
-  ['wifi','WiFi coverage','📶'], ['elec','Electrical','⚡'],
-  ['plan','Drawing overlay — dashed wall lines','📄'],
+const OVERLAYS: [OverlayKey, string][] = [
+  ['thermal','Thermal — live heat map'], ['dims','Dimensions & areas'],
+  ['light','Lighting — lux & beams'], ['audio','Acoustics — SPL waves'],
+  ['air','Natural airflow'], ['hvac','Air conditioning'],
+  ['wifi','WiFi coverage'], ['elec','Electrical'],
+  ['plan','Drawing overlay — dashed wall lines'],
 ];
 /** Compact ambience presets: an icon carries the mood, the tooltip carries the numbers. */
-const AMB_ICON = ['🌅','🌞','🌇','🍽','🎬','🌙'];
 
 /* Inline SVG so the toggles read as drawings, not emoji. 16px, currentColor. */
 const I = {
@@ -100,27 +100,33 @@ export default function Ui() {
         <div className="seg ico">{([0,1] as const).map(f =>
           <button key={f} className={s.floor === f ? 'on' : ''} data-tip={f ? 'First floor' : 'Ground floor'}
             onClick={() => s.setFloor(f)}>{f ? I.first : I.ground}</button>)}</div>
-        <button className={`ib ${s.showRoof ? 'on' : ''}`} data-tip="Roof & ceilings"
-          onClick={() => s.setShowRoof(!s.showRoof)}>{I.roof}</button>
-        <button className="ib" data-tip="Reset the view" onClick={s.resetView}>{I.reset}</button>
-        {/* ambience lives on the same row as the roof toggle: it is a control, not a read-out */}
-        <div className="ambInline">{AMBIENCE.map((a, i) =>
-          <button key={a.name} className={`amb ${s.ambience === i ? 'on' : ''}`}
+        <div className="seg ico">
+          <button className={s.showRoof ? 'on' : ''} data-tip="Roof & ceilings"
+            onClick={() => s.setShowRoof(!s.showRoof)}>{I.roof}</button>
+          <button data-tip="Reset the view" onClick={s.resetView}>{I.reset}</button>
+        </div>
+        {/* Ambience is a control, not a read-out, so it wears the same segmented
+            grouping as the view and floor toggles rather than its own chrome. */}
+        <div className="seg ico">{AMBIENCE.map((a, i) =>
+          <button key={a.name} className={s.ambience === i ? 'on' : ''}
             data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
-            onClick={() => s.applyAmbience(i)}>{AMB_ICON[i] ?? '💡'}</button>)}</div>
+            onClick={() => s.applyAmbience(i)}>{AMB_ICONS[i] ?? I.roof}</button>)}</div>
       </header>
 
       <button className="railToggle" onClick={() => s.setDrawer('rail')} aria-label="Overlays">
         {railOpen ? '✕' : '☰'}</button>
       <aside className={`rail ${railOpen ? 'open' : ''}`}>
-        <div className="cap">Overlays</div>
-        {OVERLAYS.map(([k, tip, icon]) =>
+        <div className="cap">Layers</div>
+        {OVERLAYS.map(([k, tip]) =>
           <button key={k} className={`ib ${s.overlays[k] ? 'on' : ''}`} data-tip={tip}
-            onClick={() => s.toggleOverlay(k)}>{icon}</button>)}
-        <div className="cap" style={{ marginTop: 10 }}>Openings</div>
-        <button className="ib" data-tip={`Open everything (${openCount} open)`} onClick={() => s.setAllOpenings(true)}>⇱</button>
-        <button className="ib" data-tip="Close everything" onClick={() => s.setAllOpenings(false)}>⇲</button>
-        <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off" onClick={() => s.setHvac(!s.hvacOn)}>❄</button>
+            onClick={() => s.toggleOverlay(k)}>{OVERLAY_ICON[k]}</button>)}
+        <div className="cap" style={{ marginTop: 10 }}>Doors</div>
+        <button className="ib" data-tip={`Open everything (${openCount} open)`}
+          onClick={() => s.setAllOpenings(true)}>{OVERLAY_ICON.openAll}</button>
+        <button className="ib" data-tip="Close everything"
+          onClick={() => s.setAllOpenings(false)}>{OVERLAY_ICON.closeAll}</button>
+        <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off"
+          onClick={() => s.setHvac(!s.hvacOn)}>{OVERLAY_ICON.hvac}</button>
       </aside>
 
       <div className="statStrip">
