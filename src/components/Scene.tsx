@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useLayoutEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Edges } from '@react-three/drei';
 import * as THREE from 'three';
@@ -48,18 +48,42 @@ function Floors() {
   })}</>;
 }
 function Walls() {
-  const { floor, showRoof } = useStore();
+  const { floor } = useStore();
+  const H = floor === 0 ? GEOM.H0 : GEOM.H1;
   return <>{WALLS.filter(w => w.floor === floor).map(w => {
     const dx = w.x2 - w.x1, dz = w.z2 - w.z1, L = Math.hypot(dx, dz);
-    const H = floor === 0 ? GEOM.H0 : GEOM.H1;
+    const ang = -Math.atan2(dz, dx), cx = (w.x1 + w.x2) / 2, cz = (w.z1 + w.z2) / 2;
+    const col = MATERIALS[w.mat].colour;
+    // project each opening onto the wall axis -> local offset from wall centre
+    const ops = ALL_OPENINGS.filter(o => o.wallId === w.id).map(o => {
+      const t = L < 1e-6 ? 0.5 : (((o.x - w.x1) * dx + (o.z - w.z1) * dz) / (L * L));
+      return { o, u: (t - 0.5) * L, half: o.w / 2 };
+    }).filter(e => Math.abs(e.u) <= L / 2 + 0.4).sort((a, b) => a.u - b.u);
+    const parts: { w: number; h: number; y: number; u: number }[] = [];
+    // full-height piers between openings
+    let cursor = -L / 2;
+    for (const e of ops) {
+      const left = e.u - e.half;
+      if (left > cursor + 0.02) parts.push({ w: left - cursor, h: H, y: H / 2, u: (cursor + left) / 2 });
+      cursor = Math.max(cursor, e.u + e.half);
+    }
+    if (cursor < L / 2 - 0.02) parts.push({ w: L / 2 - cursor, h: H, y: H / 2, u: (cursor + L / 2) / 2 });
+    // spandrel below the sill and above the head of each opening
+    for (const e of ops) {
+      const head = e.o.sill + e.o.h;
+      if (e.o.sill > 0.02) parts.push({ w: e.o.w, h: e.o.sill, y: e.o.sill / 2, u: e.u });
+      if (H - head > 0.02) parts.push({ w: e.o.w, h: H - head, y: (head + H) / 2, u: e.u });
+    }
     return (
-      <mesh key={w.id} castShadow receiveShadow
-        position={[(w.x1 + w.x2) / 2, yOf(w.floor) + H / 2, (w.z1 + w.z2) / 2]}
-        rotation={[0, -Math.atan2(dz, dx), 0]}>
-        <boxGeometry args={[L, H, GEOM.WT]} />
-        <meshStandardMaterial color={MATERIALS[w.mat].colour} roughness={0.95} />
-        <Edges color="#2b2b29" threshold={15} />
-      </mesh>
+      <group key={w.id} position={[cx, yOf(w.floor), cz]} rotation={[0, ang, 0]}>
+        {parts.map((pt, i) => (
+          <mesh key={i} position={[pt.u, pt.y, 0]} castShadow receiveShadow>
+            <boxGeometry args={[pt.w, pt.h, GEOM.WT]} />
+            <meshStandardMaterial color={col} roughness={0.95} />
+            <Edges color="#2b2b29" threshold={15} />
+          </mesh>
+        ))}
+      </group>
     );
   })}</>;
 }
@@ -100,6 +124,29 @@ function Openings() {
     );
   })}</>;
 }
+function Dimensions() {
+  const { floor, overlays } = useStore();
+  if (!overlays.dims) return null;
+  const y = yOf(floor) + 0.05;
+  return <>{ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
+    const w = r.x1 - r.x0, d = r.z1 - r.z0, c = roomCentre(r);
+    const pts = (a: number[], b: number[]) =>
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]);
+    return (
+      <group key={r.id}>
+        <lineSegments geometry={pts([r.x0+0.1,y,r.z0+0.1],[r.x1-0.1,y,r.z0+0.1])}>
+          <lineBasicMaterial color="#b8873f" /></lineSegments>
+        <lineSegments geometry={pts([r.x0+0.1,y,r.z0+0.1],[r.x0+0.1,y,r.z1-0.1])}>
+          <lineBasicMaterial color="#b8873f" /></lineSegments>
+        <Html position={[c.x, y + 0.02, r.z0 + 0.25]} center distanceFactor={18} zIndexRange={[8,0]}>
+          <div className="dimChip">{w.toFixed(2)} m</div></Html>
+        <Html position={[r.x0 + 0.25, y + 0.02, c.z]} center distanceFactor={18} zIndexRange={[8,0]}>
+          <div className="dimChip">{d.toFixed(2)} m</div></Html>
+        <Html position={[c.x, y + 0.02, c.z]} center distanceFactor={16} zIndexRange={[8,0]}>
+          <div className="dimChip area"><b>{r.name}</b>{(w*d).toFixed(1)} m²</div></Html>
+      </group>);
+  })}</>;
+}
 function ThermalLabels() {
   const { floor, overlays, thermal, thermalDetail } = useStore();
   if (!overlays.thermal) return null;
@@ -109,9 +156,10 @@ function ThermalLabels() {
     const d = thermalDetail[r.id];
     return (
       <Html key={r.id} position={[c.x, yOf(r.floor) + 1.1, c.z]} center distanceFactor={16} zIndexRange={[10, 0]}>
-        <div className="tempChip" style={{ background: tempColour(t).getStyle() }}>
-          {t.toFixed(1)}°C
-          {d && <span>{d.ach.toFixed(1)} ACH</span>}
+        <div className="tempChip" style={{ background: tempColour(t).getStyle() }}
+             onClick={() => useStore.getState().setSelected(r.id)}>
+          <em>{r.name}</em>{t.toFixed(1)}°C
+          {d && <span>{d.ach.toFixed(1)} ACH · {roomArea(r).toFixed(1)} m²</span>}
         </div>
       </Html>
     );
@@ -287,6 +335,103 @@ function RoomLights() {
       intensity={g.intensity} distance={9} decay={2} color={g.col} />
   ))}</>;
 }
+const STAR_R = 300;
+const STAR_N = 1800;
+/**
+ * Star field.
+ * Deliberately NOT gl.POINTS: point-sprite size is clamped by several drivers
+ * (and by software rasterisers) so the field silently disappears. Instanced
+ * low-poly spheres always rasterise, at a predictable on-screen size.
+ */
+function StarField({ opacity }: { opacity: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const seeds = useMemo(() => {
+    // Deterministic (mulberry32) so the sky does not reshuffle between renders.
+    let t = 0x9e3779b9;
+    const rnd = () => {
+      t |= 0; t = (t + 0x6d2b79f5) | 0;
+      let x = Math.imul(t ^ (t >>> 15), 1 | t);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+    // Full sphere, not just the upper hemisphere: the default cameras look DOWN
+    // at the model, so the horizon sits above the top of the frame and an
+    // upper-hemisphere-only field would be entirely off-screen.
+    return Array.from({ length: STAR_N }, () => {
+      const th = rnd() * Math.PI * 2;
+      const ph = Math.acos(1 - 2 * rnd());                    // uniform over the sphere
+      const m = rnd();                                       // magnitude
+      return {
+        x: 14 + STAR_R * Math.sin(ph) * Math.cos(th),
+        y: STAR_R * Math.cos(ph),
+        z: 5.5 + STAR_R * Math.sin(ph) * Math.sin(th),
+        s: 0.32 + m * m * m * 0.72,                          // few bright, many faint (~2-6 px)
+      };
+    });
+  }, []);
+  useLayoutEffect(() => {
+    const im = ref.current;
+    if (!im) return;
+    const m = new THREE.Matrix4();
+    seeds.forEach((p, i) => {
+      m.makeScale(p.s, p.s, p.s).setPosition(p.x, p.y, p.z);
+      im.setMatrixAt(i, m);
+    });
+    im.instanceMatrix.needsUpdate = true;
+  }, [seeds]);
+  return (
+    <instancedMesh ref={ref} args={[undefined as any, undefined as any, STAR_N]} frustumCulled={false}>
+      <sphereGeometry args={[1, 6, 5]} />
+      {/* fog={false} + toneMapped={false}: scene fog would flatten every star to the sky colour */}
+      <meshBasicMaterial color="#ffffff" fog={false} toneMapped={false}
+        transparent opacity={opacity} depthWrite={false} />
+    </instancedMesh>
+  );
+}
+/** Moon disc + halo, riding the anti-solar point so it is up whenever the sun is down. */
+function Moon({ sunAlt, sunAz, opacity }: { sunAlt: number; sunAz: number; opacity: number }) {
+  const alt = -sunAlt * 0.82 + 0.12;          // roughly opposite the sun, a little higher
+  const az = sunAz + Math.PI;
+  const d = 285;
+  const p: [number, number, number] = [
+    14 + d * Math.cos(alt) * Math.sin(az),
+    Math.max(18, d * Math.sin(alt)),
+    5.5 + d * Math.cos(alt) * Math.cos(az),
+  ];
+  return (
+    <group position={p}>
+      <mesh frustumCulled={false}>
+        <sphereGeometry args={[3.1, 24, 18]} />
+        <meshBasicMaterial color="#f2f4ef" fog={false} toneMapped={false} transparent opacity={opacity} />
+      </mesh>
+      {/* soft halo */}
+      <mesh frustumCulled={false}>
+        <sphereGeometry args={[6.4, 20, 14]} />
+        <meshBasicMaterial color="#aebedd" fog={false} toneMapped={false}
+          transparent opacity={opacity * 0.13} depthWrite={false} side={THREE.BackSide} />
+      </mesh>
+    </group>
+  );
+}
+function SkyDome() {
+  const { month, minutes } = useStore();
+  const s = solarState(month, minutes);
+  const alt = s.alt;
+  const day = new THREE.Color('#eef1f5'), gold = new THREE.Color('#f6d3a8'), night = new THREE.Color('#070c16');
+  let bg: THREE.Color;
+  if (alt > 0.28) bg = day;
+  else if (alt > 0) bg = gold.clone().lerp(day, Math.min(1, alt / 0.28));
+  else bg = new THREE.Color('#1d2740').lerp(night, Math.min(1, -alt / 0.18));
+  const starOpacity = alt > 0 ? 0 : Math.min(0.95, -alt * 6);
+  return (<>
+    <color attach="background" args={[bg.getStyle()]} />
+    <fog attach="fog" args={[bg.getStyle(), alt > 0 ? 70 : 40, alt > 0 ? 200 : 150]} />
+    {starOpacity > 0.02 && <>
+      <StarField opacity={starOpacity} />
+      <Moon sunAlt={alt} sunAz={s.az} opacity={Math.min(1, starOpacity + 0.05)} />
+    </>}
+  </>);
+}
 function SunRig() {
   const { month, minutes } = useStore();
   const ref = useRef<THREE.DirectionalLight>(null);
@@ -299,20 +444,34 @@ function SunRig() {
     ref.current.intensity = s.isDay ? 0.4 + 1.3 * Math.min(1, s.alt / 0.6) : 0.05;
   }, [s.alt, s.az, s.isDay]);
   return <>
-    <hemisphereLight intensity={s.isDay ? 0.55 : 0.12} groundColor="#dfe1dd" />
-    <ambientLight intensity={s.isDay ? 0.3 : 0.1} />
+    <hemisphereLight intensity={s.isDay ? 0.55 : 0.05} groundColor={s.isDay ? '#dfe1dd' : '#0d1424'} />
+    <ambientLight intensity={s.isDay ? 0.3 : 0.04} color={s.isDay ? '#ffffff' : '#93a6c4'} />
     <directionalLight ref={ref} castShadow shadow-mapSize={[2048, 2048]}>
       <orthographicCamera attach="shadow-camera" args={[-26, 26, 26, -26, 1, 160]} />
     </directionalLight>
   </>;
 }
+/** Reference aspect the framing was authored against (a normal desktop canvas). */
+const REF_ASPECT = 1.6;
 function Rig() {
   const { view, floor, fov } = useStore();
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   useEffect(() => {
     const c = camera as THREE.PerspectiveCamera;
-    c.fov = view === 'plan' ? 55 : fov; c.updateProjectionMatrix();
-  }, [view, fov, camera]);
+    const base = view === 'plan' ? 55 : fov;
+    const a = size.height > 0 ? size.width / size.height : REF_ASPECT;
+    if (a >= REF_ASPECT) {
+      c.fov = base;
+    } else {
+      // Portrait/narrow: widen the vertical FOV so the same horizontal extent of the
+      // building still fits. Without this the 28 m frontage is cropped on a phone.
+      const rad = (d: number) => (d * Math.PI) / 180;
+      // 1.12 = a little breathing room so the frontage is not flush with the edge
+      const hHalf = Math.atan(Math.tan(rad(base) / 2) * REF_ASPECT * 1.12);
+      c.fov = Math.min(96, (2 * Math.atan(Math.tan(hHalf) / a) * 180) / Math.PI);
+    }
+    c.updateProjectionMatrix();
+  }, [view, fov, camera, size.width, size.height]);
   return null;
 }
 export default function Scene() {
@@ -321,17 +480,22 @@ export default function Scene() {
   return (
     <Canvas shadows dpr={[1, 2]} camera={{ position: [14, 26, 26], fov: 55, near: 0.05, far: 500 }}
       gl={{ antialias: true }}>
-      <color attach="background" args={['#eef1f5']} />
-      <fog attach="fog" args={['#eef1f5', 70, 200]} />
+      <SkyDome />
       <Rig />
       <SunRig />
       <RoomLights />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14, yOf(floor) - 0.06, 5.5]} receiveShadow>
-        <planeGeometry args={[160, 160]} /><meshStandardMaterial color="#dfe6d4" />
-      </mesh>
+      {/* Finite site disc, not an infinite plane: an infinite ground fills the whole
+          frame at these camera pitches, which hides the sky (and therefore the stars)
+          entirely. Street view supplies its own ground. */}
+      {interior && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14, yOf(floor) - 0.06, 5.5]} receiveShadow>
+          <circleGeometry args={[34, 96]} /><meshStandardMaterial color="#dfe6d4" />
+        </mesh>
+      )}
       {interior && <><Floors /><Walls /><Openings /><Furniture /><Garden /></>}
       <Exterior />
       <ThermalLabels />
+      <Dimensions />
       <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><AirOverlay />
       <OrbitControls target={view==='street'?[20,3,5.5]:[14, yOf(floor) + 1, 5.5]} maxPolarAngle={Math.PI / 2.05} />
     </Canvas>

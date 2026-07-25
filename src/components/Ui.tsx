@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore, type OverlayKey } from '@/store/useStore';
 import { ROOMS, ALL_OPENINGS, roomArea, roomById } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
@@ -21,7 +21,18 @@ const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2,'0')}:${Stri
 
 export default function Ui() {
   const s = useStore();
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [railOpen, setRailOpen] = useState(false);
   useEffect(() => { s.resettleThermal(); /* eslint-disable-next-line */ }, []);
+  // Start collapsed on phones so the model, not the read-out, owns the first screen.
+  // Set after mount to keep server and client markup identical.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches) setPanelOpen(false);
+  }, []);
+  // Opening the overlay drawer on a phone should not leave it fighting the panel for space.
+  useEffect(() => {
+    if (railOpen && typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches) setPanelOpen(false);
+  }, [railOpen]);
   useEffect(() => {
     if (!s.playing) return;
     let raf = 0, last = performance.now();
@@ -45,7 +56,7 @@ export default function Ui() {
     <>
       <header className="bar top">
         <div className="brand"><b>SiteScape</b>
-          <span>101 Campbell St, Fairfield East · 28.14 × 11.0 m · material-aware</span></div>
+          <span title="101 Campbell St, Fairfield East · 28.14 × 11.0 m">101 Campbell St, Fairfield East</span></div>
         <div className="grow" />
         <div className="seg">{(['walk','plan','street'] as const).map(v =>
           <button key={v} className={s.view === v ? 'on' : ''} onClick={() => s.setView(v)}>{v}</button>)}</div>
@@ -54,7 +65,9 @@ export default function Ui() {
         <button className={`ib ${s.showRoof ? 'on' : ''}`} title="Roof & ceilings" onClick={() => s.setShowRoof(!s.showRoof)}>▦</button>
       </header>
 
-      <aside className="rail">
+      <button className="railToggle" onClick={() => setRailOpen(o => !o)} aria-label="Overlays">
+        {railOpen ? '✕' : '☰'}</button>
+      <aside className={`rail ${railOpen ? 'open' : ''}`}>
         <div className="cap">Overlays</div>
         {OVERLAYS.map(([k, tip, icon]) =>
           <button key={k} className={`ib ${s.overlays[k] ? 'on' : ''}`} data-tip={tip}
@@ -65,8 +78,11 @@ export default function Ui() {
         <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off" onClick={() => s.setHvac(!s.hvacOn)}>❄</button>
       </aside>
 
-      <section className="panel">
-        <div className="ph">Live analysis · {s.floor ? 'First' : 'Ground'} floor</div>
+      <section className={`panel ${panelOpen ? '' : 'collapsed'}`}>
+        <button className="ph" onClick={() => setPanelOpen(o => !o)}>
+          <span>Live analysis · {s.floor ? 'First' : 'Ground'} floor</span>
+          <i>{panelOpen ? '−' : '+'}</i>
+        </button>
         <div className="pb">
           <div className="stat"><span>Outdoor</span><b>{s.outdoorT.toFixed(1)} °C</b></div>
           <div className="stat"><span>Season / wind</span><b>{seasonOf(s.month)} · {WIND[s.month][0]}°</b></div>
@@ -80,14 +96,8 @@ export default function Ui() {
 
           {sel && <RoomPanel id={sel.id} />}
 
-          <div className="sec">Rooms — temperature &amp; ACH</div>
-          {ROOMS.filter(r => r.floor === s.floor && !r.outdoor && !r.void).map(r => {
-            const t = s.thermal[r.id], d = s.thermalDetail[r.id];
-            return <button key={r.id} className="rowbtn" onClick={() => s.setSelected(r.id)}>
-              <span>{r.name}</span>
-              <b>{t !== undefined ? `${t.toFixed(1)}°C` : '—'}{d ? ` · ${d.ach.toFixed(1)} ACH` : ''}</b>
-            </button>;
-          })}
+          <div className="mini">Temperatures, area and air changes are shown on each room in the
+          scene — hover a room to highlight it, tap its chip to open the full analysis here.</div>
         </div>
       </section>
 
