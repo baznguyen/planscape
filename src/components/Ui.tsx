@@ -20,7 +20,7 @@ const OVERLAYS: [OverlayKey, string][] = [
   ['thermal','Thermal — live heat map'], ['dims','Dimensions & areas'],
   ['light','Lighting — lux & beams'], ['audio','Acoustics — SPL waves'],
   ['air','Natural airflow'], ['hvac','Air conditioning'],
-  ['wifi','WiFi coverage'], ['elec','Electrical'],
+  ['wifi','WiFi coverage'],
   ['plan','Drawing overlay — dashed wall lines'],
 ];
 /** Compact ambience presets: an icon carries the mood, the tooltip carries the numbers. */
@@ -69,20 +69,22 @@ export default function Ui() {
   useEffect(() => {
     if (railOpen && typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches) setPanelOpen(false);
   }, [railOpen]);
+  // The clock reads and writes `minutes` itself, so listing it as a dependency
+  // tore the loop down and rebuilt it on every single frame. Read the current
+  // value from the store instead and let the effect live as long as playback does.
   useEffect(() => {
     if (!s.playing) return;
     let raf = 0, last = performance.now();
     const loop = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1); last = now;
-      const simSeconds = dt * 60 * s.speed;
-      const nm = (s.minutes + simSeconds / 60) % 1440;
-      useStore.setState({ minutes: nm });
+      const simSeconds = dt * 60 * useStore.getState().speed;
+      useStore.setState(st => ({ minutes: (st.minutes + simSeconds / 60) % 1440 }));
       useStore.getState().tickThermal(simSeconds);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [s.playing, s.speed, s.minutes]);
+  }, [s.playing]);
 
   const sun = solarState(s.month, s.minutes);
   const openCount = ALL_OPENINGS.filter(o => s.openIds.has(o.id) && o.kind !== 'cased').length;
@@ -96,20 +98,25 @@ export default function Ui() {
         <div className="grow" />
         <div className="seg ico">{(['walk','plan','street'] as const).map(v =>
           <button key={v} className={s.view === v ? 'on' : ''} data-tip={VIEW_TIP[v]}
+            aria-label={VIEW_TIP[v]} aria-pressed={s.view === v}
             onClick={() => s.setView(v)}>{VIEW_ICON[v]}</button>)}</div>
         <div className="seg ico">{([0,1] as const).map(f =>
           <button key={f} className={s.floor === f ? 'on' : ''} data-tip={f ? 'First floor' : 'Ground floor'}
+            aria-label={f ? 'First floor' : 'Ground floor'} aria-pressed={s.floor === f}
             onClick={() => s.setFloor(f)}>{f ? I.first : I.ground}</button>)}</div>
         <div className="seg ico">
           <button className={s.showRoof ? 'on' : ''} data-tip="Roof & ceilings"
+            aria-label="Roof and ceilings" aria-pressed={s.showRoof}
             onClick={() => s.setShowRoof(!s.showRoof)}>{I.roof}</button>
-          <button data-tip="Reset the view" onClick={s.resetView}>{I.reset}</button>
+          <button data-tip="Reset the view" aria-label="Reset the view"
+            onClick={s.resetView}>{I.reset}</button>
         </div>
         {/* Ambience is a control, not a read-out, so it wears the same segmented
             grouping as the view and floor toggles rather than its own chrome. */}
         <div className="seg ico">{AMBIENCE.map((a, i) =>
           <button key={a.name} className={s.ambience === i ? 'on' : ''}
             data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
+            aria-label={`${a.name} lighting preset`} aria-pressed={s.ambience === i}
             onClick={() => s.applyAmbience(i)}>{AMB_ICONS[i] ?? I.roof}</button>)}</div>
       </header>
 
@@ -119,13 +126,16 @@ export default function Ui() {
         <div className="cap">Layers</div>
         {OVERLAYS.map(([k, tip]) =>
           <button key={k} className={`ib ${s.overlays[k] ? 'on' : ''}`} data-tip={tip}
+            aria-label={tip} aria-pressed={s.overlays[k]}
             onClick={() => s.toggleOverlay(k)}>{OVERLAY_ICON[k]}</button>)}
         <div className="cap" style={{ marginTop: 10 }}>Doors</div>
         <button className="ib" data-tip={`Open everything (${openCount} open)`}
+          aria-label="Open every door and window"
           onClick={() => s.setAllOpenings(true)}>{OVERLAY_ICON.openAll}</button>
-        <button className="ib" data-tip="Close everything"
+        <button className="ib" data-tip="Close everything" aria-label="Close every door and window"
           onClick={() => s.setAllOpenings(false)}>{OVERLAY_ICON.closeAll}</button>
         <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off"
+          aria-label="Air conditioning" aria-pressed={s.hvacOn}
           onClick={() => s.setHvac(!s.hvacOn)}>{OVERLAY_ICON.hvac}</button>
       </aside>
 
@@ -141,11 +151,12 @@ export default function Ui() {
       <WalkPad />
 
       <footer className="bar sun">
-        <button className="play" onClick={s.togglePlay}>{s.playing ? '❚❚' : '▶'}</button>
-        <select value={s.month} onChange={e => s.setMonth(+e.target.value)}>
+        <button className="play" aria-label={s.playing ? 'Pause the time lapse' : 'Play the time lapse'}
+          onClick={s.togglePlay}>{s.playing ? '❚❚' : '▶'}</button>
+        <select value={s.month} aria-label="Month" onChange={e => s.setMonth(+e.target.value)}>
           {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
         <span className="clock">{fmt(s.minutes)}</span>
-        <input type="range" min={0} max={1439} step={5} value={Math.round(s.minutes)}
+        <input type="range" min={0} max={1439} step={5} value={Math.round(s.minutes)} aria-label="Time of day"
           onChange={e => { s.setMinutes(+e.target.value); s.tickThermal(600); }} />
         <span className="rd">{sun.isDay ? `☀ ${sun.ghi.toFixed(0)} W/m²` : '☾ night'} · {s.outdoorT.toFixed(1)}°C</span>
       </footer>

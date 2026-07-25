@@ -6,7 +6,7 @@
  * not tied to this house — and they are the reason the catalogue carries specs
  * rather than just icons.
  */
-import { ROOMS, roomArea, roomHeight, roomCentre } from '@/lib/model/building';
+import { ROOMS, GEOM, roomArea, roomHeight, roomCentre } from '@/lib/model/building';
 import {
   assetById, EIRP_LIMIT_DBM, NCC_LIGHTING_DENSITY_W_M2, HEATING_W_PER_M2, BS775_ANGLES,
   type RfBandKey,
@@ -177,7 +177,7 @@ export function runAssetRules(scene: AssetScene): RuleFinding[] {
   for (const sp of scene.speakers) {
     const spec = assetById(sp.asset ?? '');
     if (!spec || spec.mount !== 'wall' || spec.audio?.isSub) continue;
-    const above = sp.y - (sp.floor === 0 ? 0 : 3.05);
+    const above = sp.y - (sp.floor === 0 ? 0 : GEOM.F1Y);
     if (spec.id === 'spk_wall' && Math.abs(above - BS775_ANGLES.earHeightM) > 0.45) {
       out.push({
         rule: 'assets/speaker-height', severity: 'minor',
@@ -218,7 +218,9 @@ export function runAssetRules(scene: AssetScene): RuleFinding[] {
           title: `${a.name} and ${b.name} are too close`,
           detail: `${d.toFixed(1)} m apart. Cells this tight overlap heavily and co-channel interference costs more throughput than the extra coverage returns; 10-15 m is the planning figure in plasterboard.`,
           authority: 'Aruba and Cisco RF design guidance — 10-15 m AP spacing, -65 dBm cell edge',
-          subject: a.id,
+          // the PAIR is the subject: one AP close to two others produced two
+          // findings with the same id, and React keys on that id
+          subject: `${a.id}~${b.id}`,
         });
       }
     }

@@ -95,8 +95,12 @@ const Island = ({ len = 2.6 }: { len?: number }) => (<group>
   <B w={len+0.06} h={0.06} d={1.06} c={C.stone} p={[0,0.93,0]}/>
   <B w={0.06} h={0.92} d={1.06} c={C.stone} p={[-len/2,0.47,0]}/>
   <B w={0.5} h={0.03} d={0.35} c={C.metal} p={[-len*0.2,0.97,0]} edge={false}/>
-  {Array.from({length:Math.max(2,Math.floor(len/0.7))}).map((_,i)=>(
-    <group key={i} position={[(i-0.5)*0.7, 0, 0.85]}>
+  {/* Stools face the bench. The seat's backrest sits at local -z, so the group is
+      turned through 180 degrees to put the back on the outside and the sitter
+      looking at the island — the way anyone actually uses a breakfast bar. They
+      are also centred on the island rather than counted out from one end. */}
+  {Array.from({length:Math.max(2,Math.floor(len/0.7))}).map((_,i,a)=>(
+    <group key={i} position={[(i-(a.length-1)/2)*0.7, 0, 0.85]} rotation={[0,Math.PI,0]}>
       <B w={0.34} h={0.04} d={0.34} c={C.wood} p={[0,0.64,0]}/>
       <Legs w={0.34} d={0.34} h={0.64} c={C.metal} inset={0.04}/>
       <B w={0.34} h={0.28} d={0.04} c={C.wood} p={[0,0.9,-0.15]}/></group>))}

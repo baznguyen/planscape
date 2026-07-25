@@ -19,6 +19,8 @@ import Exterior, { Garden } from './Exterior';
 import PlanOverlay, { Beams } from './PlanOverlay';
 import Airflow from './Airflow';
 import Placed, { PlacementPlane } from './Placed';
+import Dimensions from './Dimensions';
+import { resolveStep, onPlate, nearestOnPlate } from '@/lib/model/walkable';
 
 const yOf = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
 /** Temperature -> colour ramp (blue 16C -> green 22 -> yellow 27 -> red 34+). */
@@ -180,79 +182,6 @@ function Openings() {
     );
   })}</>;
 }
-function Dimensions() {
-  const { floor, overlays, month, minutes } = useStore();
-  const walls = WALLS.filter(w => w.floor === floor);
-  // Contrast against whatever the sky is doing. Gold-on-pale reads at midday and
-  // vanishes at midnight, so the whole string inverts as the sun goes down.
-  const alt = solarState(month, minutes).alt;
-  const night = alt <= 0;
-  const dusk = alt > 0 && alt < 0.18;
-  const lineColour = night ? '#ffd98a' : dusk ? '#7a4a12' : '#8a5f1f';
-  const chipClass = night ? 'dimChip night' : 'dimChip';
-  /**
-   * Proper dimension strings: one per wall, offset clear of the wall on the
-   * outward side, with witness lines and ticks. Drawn with depthTest off at
-   * waist height so the whole string floats over the render instead of being
-   * swallowed by furniture and joinery.
-   */
-  const { geom, labels } = useMemo(() => {
-    const y = yOf(floor) + 1.35;
-    const cx = GEOM.LEN / 2, cz = GEOM.WID / 2;
-    const pts: THREE.Vector3[] = [];
-    const labs: { x: number; z: number; mm: number }[] = [];
-    const seg = (ax: number, az: number, bx: number, bz: number) => {
-      pts.push(new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz));
-    };
-    for (const w of walls) {
-      const dx = w.x2 - w.x1, dz = w.z2 - w.z1;
-      const L = Math.hypot(dx, dz);
-      if (L < 0.45) continue;                       // too short to dimension legibly
-      const ux = dx / L, uz = dz / L;
-      // perpendicular, flipped so it always points away from the building centre
-      let nx = -uz, nz = ux;
-      const mx = (w.x1 + w.x2) / 2, mz = (w.z1 + w.z2) / 2;
-      if ((mx - cx) * nx + (mz - cz) * nz < 0) { nx = -nx; nz = -nz; }
-      const o = w.external ? 0.62 : 0.34;
-      const ax = w.x1 + nx * o, az = w.z1 + nz * o;
-      const bx = w.x2 + nx * o, bz = w.z2 + nz * o;
-      seg(ax, az, bx, bz);                                        // dimension line
-      seg(w.x1 + nx * 0.06, w.z1 + nz * 0.06, ax + nx * 0.1, az + nz * 0.1);   // witness
-      seg(w.x2 + nx * 0.06, w.z2 + nz * 0.06, bx + nx * 0.1, bz + nz * 0.1);
-      // 45-degree architectural ticks at each end
-      const t = 0.11;
-      seg(ax - (ux + nx) * t, az - (uz + nz) * t, ax + (ux + nx) * t, az + (uz + nz) * t);
-      seg(bx - (ux + nx) * t, bz - (uz + nz) * t, bx + (ux + nx) * t, bz + (uz + nz) * t);
-      labs.push({ x: (ax + bx) / 2 + nx * 0.16, z: (az + bz) / 2 + nz * 0.16, mm: Math.round(L * 1000) });
-    }
-    return { geom: new THREE.BufferGeometry().setFromPoints(pts), labels: labs, y };
-  }, [floor, walls]);
-
-  if (!overlays.dims) return null;
-  const y = yOf(floor) + 1.35;
-  return (
-    <group renderOrder={45}>
-      <lineSegments geometry={geom} frustumCulled={false}>
-        <lineBasicMaterial color={lineColour} transparent opacity={night ? 1 : 0.95}
-          depthTest={false} fog={false} toneMapped={false} />
-      </lineSegments>
-      {labels.map((l, i) => (
-        <Html key={i} position={[l.x, y + 0.02, l.z]} center distanceFactor={17} zIndexRange={[14, 0]}>
-          <div className={chipClass}>{l.mm.toLocaleString()}</div>
-        </Html>
-      ))}
-      {ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
-        const c = roomCentre(r);
-        return (
-          <Html key={r.id} position={[c.x, y + 0.02, c.z]} center distanceFactor={15} zIndexRange={[13, 0]}>
-            <div className={`${chipClass} area`}>{r.name}<b>{roomArea(r).toFixed(1)} m²</b>
-              <i>{(r.x1 - r.x0).toFixed(2)} × {(r.z1 - r.z0).toFixed(2)} m</i></div>
-          </Html>
-        );
-      })}
-    </group>
-  );
-}
 /** Area of overlap between two rooms in plan. */
 function overlapArea(a: Room, b: { x0: number; x1: number; z0: number; z1: number }) {
   const w = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0));
@@ -314,13 +243,23 @@ function WalkMover() {
   useFrame((_, dtRaw) => {
     const st = useStore.getState();
     const { f, s: strafe } = st.walkInput;
-    if (!controls || st.view === 'plan' || (f === 0 && strafe === 0)) return;
+    // Nothing to walk through in plan or street view — plan is an overview and
+    // street unmounts the interior entirely.
+    if (!controls || st.view !== 'walk' || (f === 0 && strafe === 0)) return;
     fwd.subVectors(controls.target, camera.position); fwd.y = 0;
     if (fwd.lengthSq() < 1e-6) return;
     fwd.normalize();
     right.crossVectors(fwd, UP).normalize();
     const d = 4.2 * Math.min(dtRaw, 0.05);
     step.set(0, 0, 0).addScaledVector(fwd, f * d).addScaledVector(right, strafe * d);
+    // At eye level you are a person in a building: stay on the slab and go
+    // through the doorways. Free-flying the overview camera keeps the old
+    // behaviour, because there you are looking at the model, not standing in it.
+    if (st.eyeLevel) {
+      const r = resolveStep(st.floor, camera.position.x, camera.position.z, step.x, step.z);
+      if (!r.moved) return;
+      step.set(r.x - camera.position.x, 0, r.z - camera.position.z);
+    }
     camera.position.add(step);
     controls.target.add(step);
     controls.update();
@@ -347,9 +286,13 @@ function TargetRig() {
       if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
       dir.normalize();
       // if the overview left us outside the envelope, step in to the hall
-      const inside = camera.position.x > 1 && camera.position.x < GEOM.LEN - 1 &&
-                     camera.position.z > 1 && camera.position.z < GEOM.WID - 1;
-      const px = inside ? camera.position.x : 14, pz = inside ? camera.position.z : 5.5;
+      // Land on the floor plate, not merely inside the bounding box: the
+      // overview camera is usually out over the garden, and dropping to eye
+      // height there put you under the slab looking up at its underside.
+      const p = onPlate(floor, camera.position.x, camera.position.z)
+        ? { x: camera.position.x, z: camera.position.z }
+        : nearestOnPlate(floor, camera.position.x, camera.position.z);
+      const px = p.x, pz = p.z;
       camera.position.set(px, base + EYE, pz);
       controls.target.set(px + dir.x * 4, base + EYE * 0.95, pz + dir.z * 4);
     } else if (view === 'street') {
@@ -373,7 +316,8 @@ function ThermalLabels() {
     if (t === undefined) return null;
     const d = thermalDetail[r.id];
     return (
-      <Html key={r.id} position={[c.x, yOf(r.floor) + 1.1, c.z]} center distanceFactor={16} zIndexRange={[10, 0]}>
+      <Html key={r.id} position={[c.x, yOf(r.floor) + 1.1, c.z]} center distanceFactor={16}
+        zIndexRange={[8, 0]} occlude>
         <div className="tempChip" style={{ background: tempColour(t).getStyle() }}
              onClick={() => useStore.getState().setSelected(r.id)}>
           <em>{r.name}</em>{t.toFixed(1)}°C
@@ -470,7 +414,14 @@ function HvacOverlay() {
 }
 function WifiOverlay() {
   const { floor, overlays, aps, rfBand, openIds } = useStore();
+  const on = overlays.wifi;
+  /**
+   * 3,136 RF solves and a fresh GPU texture. This used to run above the early
+   * return, so every door you opened paid for a full field solve and leaked a
+   * texture with the overlay switched off and nothing on screen to show for it.
+   */
   const tex = useMemo(() => {
+    if (!on) return null;
     const N = 56, cv = document.createElement('canvas'); cv.width = N; cv.height = N;
     const ctx = cv.getContext('2d')!, img = ctx.createImageData(N, N);
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -482,8 +433,9 @@ function WifiOverlay() {
     }
     ctx.putImageData(img, 0, 0);
     const t = new THREE.CanvasTexture(cv); t.minFilter = THREE.LinearFilter; return t;
-  }, [floor, aps, rfBand, openIds]);
-  if (!overlays.wifi) return null;
+  }, [on, floor, aps, rfBand, openIds]);
+  useEffect(() => () => tex?.dispose(), [tex]);
+  if (!on || !tex) return null;
   return <>
     <mesh position={[GEOM.LEN / 2, yOf(floor) + 0.1, GEOM.WID / 2]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[GEOM.LEN, GEOM.WID]} />

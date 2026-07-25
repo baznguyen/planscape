@@ -124,9 +124,17 @@ export default function Airflow() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const col = useMemo(() => new THREE.Color(), []);
 
+  // The pool reads sources through a ref. `sources` depends on the thermal
+  // state, which is rewritten every animation frame during playback, so using
+  // it as an effect dependency teleported all 520 particles back to their
+  // vents 60 times a second — the field shimmered in place instead of flowing.
+  const srcRef = useRef(sources);
+  srcRef.current = sources;
+
   const respawn = (i: number, jitterAge: boolean) => {
-    if (!sources.length) { pool.age[i] = -1; return; }
-    const s = sources[(Math.floor(i * 2654435761) >>> 0) % sources.length];
+    const src = srcRef.current;
+    if (!src.length) { pool.age[i] = -1; return; }
+    const s = src[(Math.floor(i * 2654435761) >>> 0) % src.length];
     pool.pos[i * 3] = s.x + (rand(i * 3 + 1) - 0.5) * s.spread;
     pool.pos[i * 3 + 1] = s.y + (rand(i * 3 + 2) - 0.5) * s.spread * 0.6;
     pool.pos[i * 3 + 2] = s.z + (rand(i * 3 + 3) - 0.5) * s.spread;
@@ -142,10 +150,14 @@ export default function Airflow() {
     return (x >>> 0) / 4294967296;
   };
 
+  // Re-seed only when the SHAPE of the field changes — a different floor, a
+  // different season, a door opened, a vent placed. Temperature drift is picked
+  // up on each particle's next natural respawn.
+  const sig = `${floor}|${month}|${hvacOn}|${openIds.size}|${items.length}|${sources.length}`;
   useLayoutEffect(() => {
     for (let i = 0; i < N; i++) respawn(i, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources]);
+  }, [sig]);
 
   useFrame((_, dtRaw) => {
     const im = mesh.current;

@@ -541,3 +541,8 @@ main{position:fixed;inset:0}
 /* While the drawer is open you are placing or specifying, not walking. Fade the
    pad rather than hiding it, so the controls stay where muscle memory expects. */
 .toolbox.open ~ .walkPad{opacity:.3}
+
+/* A refused placement has to say why. Amber, tappable to dismiss — a silent
+   refusal reads as a broken button. */
+.mini.warn{background:rgba(184,90,40,.14);border:1px solid rgba(184,90,40,.45);
+ color:#8a3d12;border-radius:6px;padding:4px 6px;cursor:pointer;margin:2px 0}

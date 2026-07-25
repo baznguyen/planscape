@@ -95,3 +95,71 @@ belongs in `src/lib/model/`, not in a component.**
 ## Current state
 
 16 checks, 16 clean, 10.0 / 10 against the issued drawing.
+
+## Check what the occupant experiences, not the data structure you have
+
+The circulation check passed while four rooms had no way in.
+
+It worked on the declared graph — door records naming two rooms, plus shared
+room boundaries. A graph like that says two spaces are connected because an
+object says so. It cannot see a 1.35 m wall stub standing across the middle of
+the corridor, because the stub is not in the graph; it is in the geometry.
+
+`circulation/walkable` in `draftingRules.ts` replaces the assumption with a
+measurement: flood a 100 mm grid outward from the front door (and from the head
+of the stair upstairs) using the same `standable()` predicate the walkthrough
+camera obeys, then ask which rooms the flood reached. It immediately found that
+`fi_12` sealed the east end of the first floor landing, which is the only route
+to the primary suite, its robe, its ensuite and bedroom 4.
+
+Two lessons worth keeping:
+
+**A wall crossing a declared room is a contradiction, and one of the two is
+wrong.** The landing rectangle ran through to x = 21,500; the stub sat at
+19,500. Both cannot be right. The room rectangle is what the certified areas
+depend on, so the stub is read as a jamb and the gap beside it as a cased
+opening — recorded as an inference in `building.ts`, not as a measured
+dimension, and flagged for confirmation against sheet SK1.
+
+**A cupboard is not a room you walk into.** The first version of the rule
+flagged the 640 mm linen press, because a 260 mm body radius does not fit
+inside it. Correct, and useless. Anything under a 900 mm clear width is now
+checked at its door instead of inside it.
+
+## Movement is a model, not a camera transform
+
+"I don't want to see underneath the floor plan" was not a rendering fault. The
+walkthrough added a step vector to the camera with no test at all, so holding
+forward walked you through the external wall, off the site disc and into the
+fog — and on the first floor it left you hovering two storeys up over the
+garden, looking at the underside of a slab nothing was ever meant to see.
+
+`walkable.ts` states the two rules a person actually obeys: stay on the slab,
+and keep a body's clearance from any wall unless you are in a doorway.
+
+The subtlety that took two attempts: **do not test against room rectangles.**
+This house is largely open plan — the kitchen, family and dining spaces run
+together, exactly as the drawing shows — so a containment test built on room
+rectangles erects an invisible wall on every shared edge. The first version
+confined the walker to two spaces out of twenty-seven. Test against the walls,
+because the walls are what stop you.
+
+The second subtlety: room rectangles are taken to the wall FACES, so between
+two rooms either side of a partition there is a 110-150 mm strip belonging to
+neither — the threshold you stand on as you pass through the opening. Without a
+tolerance for it, every doorway in the house is a wall.
+
+## Labels belong to the scene, not to the page
+
+The measurement overlay's labels were DOM elements, and every problem with it
+followed from that one decision. They sat in the page's stacking context, so
+they painted over the header, the rail and the walk pad. They captured the
+pointer, so a drag beginning on a label did not orbit the model. And they had
+no idea what any other label was doing, so thirty of them piled into an
+unreadable heap the moment you stood inside the building.
+
+They are now canvas-textured sprites drawn with the dimension lines, depth-test
+off so the string still floats above the render, and de-cluttered every frame
+in screen space: project, sort best-first, hide anything whose box lands on a
+box already accepted. External wall dimensions outrank room names, which outrank
+internal walls — a drawing is readable because a draftsman leaves labels out.

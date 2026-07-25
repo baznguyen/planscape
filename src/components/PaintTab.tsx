@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { roomById, WALLS } from '@/lib/model/building';
 import {
@@ -46,7 +46,11 @@ export default function PaintTab() {
   // a wall scope needs a wall; use one bounding the selected room
   const wallsHere = room ? WALLS.filter(w => w.floor === room.floor && roomsOnWall(w).includes(room.id)) : [];
   const [wallIdx, setWallIdx] = useState(0);
-  const wall = wallsHere[Math.min(wallIdx, Math.max(0, wallsHere.length - 1))];
+  // A new room has a different number of walls, so a stale index printed
+  // "Wall 6 of 2" while the buttons operated on wall 2.
+  useEffect(() => { setWallIdx(0); }, [room?.id]);
+  const idx = Math.min(wallIdx, Math.max(0, wallsHere.length - 1));
+  const wall = wallsHere[idx];
 
   const targetId =
     scope === 'wall' ? (wall?.id ?? '') :
@@ -94,7 +98,7 @@ export default function PaintTab() {
       {scope === 'wall' && !room && <div className="mini hint">Tap a room, then pick its wall</div>}
       {scope === 'wall' && wallsHere.length > 0 && (
         <>
-          <div className="sec">Wall {wallIdx + 1} of {wallsHere.length}</div>
+          <div className="sec">Wall {idx + 1} of {wallsHere.length}</div>
           <div className="tbTabs sm">
             <button onClick={() => setWallIdx(i => Math.max(0, i - 1))}>‹</button>
             <button className="on">{wall?.id}</button>
@@ -167,7 +171,7 @@ export default function PaintTab() {
 
       <div className="sec">Wallpaper</div>
       <input ref={file} type="file" accept="image/*" hidden
-        onChange={e => upload(e.target.files?.[0] ?? null)} />
+        onChange={e => { upload(e.target.files?.[0] ?? null); e.target.value = ''; }} />
       <label className="mini rangeRow">Repeat {repeat.toFixed(2)} m
         <input type="range" min={0.2} max={2} step={0.05} value={repeat}
           onChange={e => setRepeat(+e.target.value)} />

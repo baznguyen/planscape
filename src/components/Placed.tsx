@@ -247,7 +247,7 @@ export default function Placed() {
       ))}
       {/* catalogue luminaires get their real fitting drawn; auto-designed ones do not */}
       {lights.filter(l => l.floor === floor && l.asset).map(l => (
-        <group key={l.id} position={[l.x, l.y, l.z]}
+        <group key={l.id} position={[l.x, base + l.y, l.z]}
           onContextMenu={e => { e.stopPropagation(); removeItem(l.id); }}>
           <AssetMesh assetId={l.asset!} on={l.on} />
         </group>
@@ -274,12 +274,18 @@ export function PlacementPlane() {
         onClick={e => {
           e.stopPropagation();
           const { x, z } = e.point;
-          placeAt(floor, x, z, roomAt(floor, x, z) ?? 'g_liv');
+          // No fallback room. A tap on the apron outside the building used to be
+          // filed into the living room, so a heater dropped on the lawn heated
+          // g_liv and the reviewer flagged it forever.
+          placeAt(floor, x, z, roomAt(floor, x, z));
         }}
         onPointerMissed={() => setPlacing(null)}>
         <meshBasicMaterial transparent opacity={0.06} color="#b8873f" depthWrite={false} />
       </mesh>
-      <Html position={[GEOM.LEN / 2, yOf(floor) + 1.9, -1.6]} center zIndexRange={[30, 0]}>
+      {/* Below every UI layer and inert to the pointer: this is a caption, and a
+          caption must never cover the button you are reaching for or eat a drag. */}
+      <Html position={[GEOM.LEN / 2, yOf(floor) + 1.9, -1.6]} center zIndexRange={[8, 0]}
+        style={{ pointerEvents: 'none' }}>
         <div className="placeHint">
           <b>{spec?.label ?? placing.type}</b> · mounts to {where}
         </div>

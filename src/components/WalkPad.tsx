@@ -63,7 +63,13 @@ export default function WalkPad() {
 
   const btn = (d: Dir, glyph: string, cls: string, label: string) => (
     <button className={`pad ${cls}`} aria-label={label}
-      onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); press(d); }}
+      // Capture is an optimisation — it keeps the button held when your thumb
+      // slides off it. It throws if the pointer has already been released, and
+      // an exception here would abort the press and leave the pad dead.
+      onPointerDown={e => {
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not fatal */ }
+        press(d);
+      }}
       onPointerUp={() => release(d)}
       onPointerCancel={() => release(d)}
       onPointerLeave={() => release(d)}

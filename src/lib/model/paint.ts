@@ -7,7 +7,7 @@
  * Quarter, except the media room, which is Domino" — and it means repainting a
  * whole level is one entry rather than forty.
  */
-import { WALLS, ROOMS, roomArea, roomHeight, type Wall } from './building';
+import { WALLS, ROOMS, GEOM, roomArea, roomHeight, type Wall } from './building';
 import { lrvToReflectance, type Colour } from './colours';
 
 /** Ordered least to most specific. Later beats earlier. */
@@ -118,7 +118,9 @@ export function scopeArea(scope: PaintScope, targetId: string): number {
   if (scope === 'wall') {
     const w = WALLS.find(x => x.id === targetId);
     if (!w) return 0;
-    const H = w.floor === 0 ? 2.72 : 2.59;
+    // GEOM, not a literal: the ground storey was corrected to 2.74 and a stray
+    // 2.72 here quoted different litres for a wall than for the room around it.
+    const H = w.floor === 0 ? GEOM.H0 : GEOM.H1;
     return Math.hypot(w.x2 - w.x1, w.z2 - w.z1) * H * 2;   // both faces
   }
   if (scope === 'room') {
@@ -133,7 +135,7 @@ export function scopeArea(scope: PaintScope, targetId: string): number {
   }
   if (scope === 'facade') {
     return WALLS.filter(w => w.external)
-      .reduce((a, w) => a + Math.hypot(w.x2 - w.x1, w.z2 - w.z1) * (w.floor === 0 ? 2.72 : 2.59), 0);
+      .reduce((a, w) => a + Math.hypot(w.x2 - w.x1, w.z2 - w.z1) * (w.floor === 0 ? GEOM.H0 : GEOM.H1), 0);
   }
   // whole house, internal faces
   return ROOMS.filter(r => !r.outdoor && !r.void)

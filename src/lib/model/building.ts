@@ -213,6 +213,17 @@ export const OPENINGS: Opening[] = [
   O('d_f4',1,'fi_9',17.6,7.9,0.8,2.34,0,'door','doorSolid',0.9,'f_wr2','f_bth','N'),
   O('d_f5',1,'fi_13',21.0,5.0,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_pri','N'),
   O('d_f6',1,'fi_11',20.3,6.35,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd4','N'),
+  /**
+   * fi_12 is a 1.35 m stub across the landing at x = 19,500. As drawn it sealed
+   * the east end of the landing, which is the ONLY way into the primary suite,
+   * its robe, its ensuite and bedroom 4 — four rooms with no route to the stair.
+   * A hallway does not stop dead in front of four doors, and the landing
+   * rectangle itself runs through to 21,500, so the stub reads as a jamb and
+   * the gap between it and fi_13 as a cased opening. Modelled as one, 1,200
+   * wide. INFERENCE, not a measured dimension: confirm against sheet SK1.
+   * The walkability rule in draftingRules.ts is what found this.
+   */
+  O('o_f12',1,'fi_12',19.5,5.7,1.2,2.34,0,'cased','doorSolid',1,'f_lnd','f_lnd','E'),
   O('d_f7',1,'fi_16',21.7,1.6,0.7,2.34,0,'door','doorSolid',0.9,'f_wr1','f_ens','E'),
   O('d_f8',1,'fi_15',20.5,2.45,0.8,2.34,0,'door','doorSolid',0.9,'f_pri','f_wr1','N'),
   O('d_f9',1,'fi_8',16.3,7.0,0.72,2.34,0,'door','doorSolid',0.9,'f_bd2','f_wr2','E'),

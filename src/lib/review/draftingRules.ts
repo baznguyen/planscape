@@ -16,6 +16,7 @@ import {
   ROOMS, WALLS, ALL_OPENINGS, STAIRS, BEAMS, GEOM,
   roomArea, roomHeight, type Room,
 } from '@/lib/model/building';
+import { standable } from '@/lib/model/walkable';
 
 export type RuleSeverity = 'critical' | 'major' | 'minor' | 'pass';
 export interface RuleFinding {
@@ -316,6 +317,105 @@ function stairGeometry(): RuleFinding[] {
   return out;
 }
 
+
+/**
+ * You must be able to WALK to every room.
+ *
+ * There was already a circulation check, and it passed — but it worked on the
+ * declared graph: door records and shared room boundaries. A graph like that
+ * says two rooms are connected because a door object names them both. It cannot
+ * see a wall standing across the middle of the corridor.
+ *
+ * This rule works on the geometry instead. It floods a 100 mm grid outward from
+ * the entry (and from the head of the stair on the first floor) using the same
+ * standable() test the walkthrough camera obeys, and asks which rooms the flood
+ * actually reaches. The first thing it found was a 1.35 m wall stub sealing the
+ * east end of the first floor landing — the only route to the primary suite,
+ * its robe, its ensuite and bedroom 4. Four rooms, no way in, and every
+ * adjacency-based check in the file said the plan was fine.
+ *
+ * The lesson generalises: check the thing the occupant experiences, not the
+ * data structure you happen to have.
+ */
+function reachableOnFoot(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  const G = 0.1;
+  for (const floor of [0, 1] as const) {
+    const rooms = ROOMS.filter(r => r.floor === floor && !r.void && !r.outdoor);
+    if (!rooms.length) continue;
+    // ground starts at the front door; upstairs starts at the head of the stair
+    const seedRoom = floor === 0
+      ? (rooms.find(r => r.id === 'g_ent') ?? rooms[0])
+      : (rooms.find(r => r.id === 'f_lnd') ?? rooms[0]);
+    const nx = Math.ceil(GEOM.LEN / G) + 2, nz = Math.ceil(GEOM.WID / G) + 2;
+    const key = (i: number, j: number) => i * nz + j;
+    const seen = new Uint8Array(nx * nz);
+    const si = Math.round(((seedRoom.x0 + seedRoom.x1) / 2) / G);
+    const sj = Math.round(((seedRoom.z0 + seedRoom.z1) / 2) / G);
+    if (!standable(floor, si * G, sj * G)) continue;
+    const stack = [key(si, sj)];
+    seen[key(si, sj)] = 1;
+    while (stack.length) {
+      const c = stack.pop()!;
+      const i = Math.floor(c / nz), j = c % nz;
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const q = i + a, r = j + b;
+        if (q < 0 || r < 0 || q >= nx || r >= nz) continue;
+        const k = key(q, r);
+        if (seen[k] || !standable(floor, q * G, r * G)) continue;
+        seen[k] = 1; stack.push(k);
+      }
+    }
+    const reached = (x: number, z: number) => {
+      const i = Math.round(x / G), j = Math.round(z / G);
+      return i >= 0 && j >= 0 && i < nx && j < nz && !!seen[key(i, j)];
+    };
+    for (const r of rooms) {
+      let hit = false;
+      for (let i = Math.ceil((r.x0 + 0.3) / G); i <= Math.floor((r.x1 - 0.3) / G) && !hit; i++)
+        for (let j = Math.ceil((r.z0 + 0.3) / G); j <= Math.floor((r.z1 - 0.3) / G) && !hit; j++)
+          if (seen[key(i, j)]) hit = true;
+      if (hit) continue;
+      /**
+       * A cupboard is not a room you walk into — a 640 mm linen press is
+       * reached by opening the door and putting your arm in. For anything
+       * narrower than a 900 mm clear width, the question is whether you can
+       * stand at its door, not inside it.
+       */
+      const minDim = Math.min(r.x1 - r.x0, r.z1 - r.z0);
+      if (minDim < 0.9) {
+        const doors = ALL_OPENINGS.filter(o => o.floor === floor && (o.a === r.id || o.b === r.id));
+        const servedFromOutside = doors.some(o => {
+          for (const d of [[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]]) {
+            const px = o.x + d[0], pz = o.z + d[1];
+            if (px >= r.x0 && px <= r.x1 && pz >= r.z0 && pz <= r.z1) continue;  // that side is the cupboard
+            if (reached(px, pz)) return true;
+          }
+          return false;
+        });
+        if (servedFromOutside) continue;
+      }
+      out.push({
+        rule: 'circulation/walkable', severity: 'major',
+        title: `${r.name} cannot be walked to`,
+        detail: `Flooding the floor plate from ${seedRoom.name} with a 260 mm body radius never reaches ${r.name}, and there is no reachable standing position at its door either. Either a wall crosses the route with no opening in it, or the doorway serving this room is too tight to pass.`,
+        authority: 'NCC Volume Two — access to and egress from every room',
+        learnedFrom: 'a 1.35 m wall stub sealing the landing, which the adjacency graph could not see',
+        subject: r.id,
+      });
+    }
+  }
+  if (!out.length) {
+    out.push({
+      rule: 'circulation/walkable', severity: 'pass',
+      title: 'Every room can be walked to',
+      detail: 'Flooding both floor plates from the entry and the landing with a 260 mm body radius reaches every habitable space through the openings as drawn. Cupboards under 900 mm clear are checked at their door rather than inside.',
+      authority: 'NCC Volume Two — access to and egress from every room',
+    });
+  }
+  return out;
+}
+
 /** Run the whole rule set. */
 export function runDraftingRules(): RuleFinding[] {
   return [
@@ -327,5 +427,6 @@ export function runDraftingRules(): RuleFinding[] {
     ...naturalLight(),
     ...ceilingHeights(),
     ...roomProportions(),
+    ...reachableOnFoot(),
   ];
 }

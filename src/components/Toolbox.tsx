@@ -39,7 +39,7 @@ export default function Toolbox() {
 
   const target = s.selectedRoom ?? s.hoverRoom;
   const room = target ? roomById(target) : null;
-  const placed = s.items.length + s.speakers.length + s.aps.length;
+  const placed = [...s.items, ...s.speakers, ...s.aps.filter(a => a.asset), ...s.lights.filter(l => l.asset)];
 
   const upload = (f: File | null) => {
     if (!f || !room) return;
@@ -66,6 +66,9 @@ export default function Toolbox() {
 
         {tab === 'place' && (
           <div className="tbBody">
+            {s.placeError && (
+              <div className="mini warn" onClick={() => s.clearPlaceError()}>{s.placeError}</div>
+            )}
             {s.placing
               ? <div className="mini armed"><b>{s.placing.type}</b> — tap the floor
                   <button className="lnk" onClick={() => s.setPlacing(null)}>cancel</button></div>
@@ -98,18 +101,27 @@ export default function Toolbox() {
                   Toggle room lights</button>
               </>
             )}
-            {s.items.length > 0 && (
+            {/* Everything the user placed, not just the thermal items — a speaker or
+                an AP that only exists in the 3D view can be neither seen nor removed
+                without a right-click, which does not exist on a phone. */}
+            {placed.length > 0 && (
               <>
-                <div className="sec">Placed · {placed}</div>
-                {s.items.map(i => (
-                  <button key={i.id} className={`rowbtn ${i.on ? 'open' : ''}`}
-                    onClick={() => s.updateItem(i.id, { on: !i.on })}>
-                    <span>{ASSETS.find(a => a.id === i.asset)?.label ?? i.type}</span>
-                    <b>{i.on ? 'on' : 'off'}</b>
-                  </button>
-                ))}
-                <button className="btn" onClick={() => s.items.forEach(i => s.removeItem(i.id))}>
-                  Clear all</button>
+                <div className="sec">Placed · {placed.length}</div>
+                {placed.map(i => {
+                  const label = ASSETS.find(a => a.id === (i as any).asset)?.label
+                    ?? (i as any).type ?? (i as any).name;
+                  const toggleable = 'on' in i;
+                  return (
+                    <button key={i.id} className={`rowbtn ${(i as any).on ? 'open' : ''}`}
+                      onClick={() => toggleable
+                        ? s.updateItem(i.id, { on: !(i as any).on })
+                        : s.removeItem(i.id)}>
+                      <span>{label}</span>
+                      <b>{toggleable ? ((i as any).on ? 'on' : 'off') : 'remove'}</b>
+                    </button>
+                  );
+                })}
+                <button className="btn" onClick={() => s.clearPlaced()}>Clear all</button>
               </>
             )}
           </div>
@@ -147,7 +159,7 @@ export default function Toolbox() {
                 </div>
                 <div className="sec">Upload</div>
                 <input ref={file} type="file" accept="image/*" hidden
-                  onChange={e => upload(e.target.files?.[0] ?? null)} />
+                  onChange={e => { upload(e.target.files?.[0] ?? null); e.target.value = ''; }} />
                 <button className="btn" onClick={() => file.current?.click()}>Choose image…</button>
                 {s.finishes[room.id]?.[surface] && (
                   <>
