@@ -44,7 +44,7 @@ export default function Ui() {
   return (
     <>
       <header className="bar top">
-        <div className="brand"><b>Grantham 36.9 — Analysis Engine</b>
+        <div className="brand"><b>SiteScape</b>
           <span>101 Campbell St, Fairfield East · 28.14 × 11.0 m · material-aware</span></div>
         <div className="grow" />
         <div className="seg">{(['walk','plan','street'] as const).map(v =>
