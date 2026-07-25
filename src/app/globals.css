@@ -365,3 +365,62 @@ main{position:fixed;inset:0}
   .toolbox .tbGrid{grid-template-columns:repeat(5,1fr)}
   .review{display:none}
 }
+
+/* ============================================================
+   Icon toggles, stats strip, inline ambience, glass timelapse
+============================================================ */
+.seg.ico button{padding:5px 10px;display:flex;align-items:center;justify-content:center;position:relative}
+.seg.ico button svg{display:block}
+.seg.ico button[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:50%;
+ transform:translateX(-50%);white-space:nowrap;background:var(--ink);color:#fff;font-size:10px;
+ padding:4px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:.14s;z-index:60}
+.seg.ico button[data-tip]:hover::after{opacity:1}
+
+/* ambience rides the header row with the roof and reset controls */
+.ambInline{display:flex;gap:4px;background:var(--sf);border:1px solid var(--ln);border-radius:10px;
+ padding:2.5px;backdrop-filter:blur(14px) saturate(1.4);box-shadow:var(--sh)}
+.ambInline .amb{width:28px;height:28px;flex:none;border:0;background:transparent;border-radius:7.5px;font-size:13px}
+.ambInline .amb[data-tip]::after{bottom:auto;top:calc(100% + 8px)}
+.ambInline .amb.on{background:var(--ac)}
+
+/* live analysis reads as a strip of numbers, not a modal */
+.statStrip{position:absolute;z-index:10;top:60px;left:13px;display:flex;gap:0;
+ background:var(--sf2);border:1px solid var(--ln);border-radius:10px;overflow:hidden;
+ backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--sh);font-variant-numeric:tabular-nums}
+.statStrip span{display:flex;flex-direction:column;gap:1px;padding:5px 11px;border-right:1px solid var(--ln)}
+.statStrip span:last-child{border-right:0}
+.statStrip i{font-style:normal;font-size:8px;font-weight:700;letter-spacing:.6px;
+ text-transform:uppercase;color:var(--ink3)}
+.statStrip b{font-size:11px;font-weight:650}
+
+/* detail panel sits below the strip */
+.panel{top:104px;max-height:calc(100vh - 210px)}
+
+/* timelapse is glass */
+.sun{background:rgba(255,255,255,.34);border-color:rgba(20,28,40,.12);
+ backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5)}
+.sun select{color:var(--ink)}
+
+/* paint tab */
+.tbTabs.wrap{flex-wrap:wrap}
+.tbTabs.wrap button{flex:1 0 30%}
+.swatch.tall{aspect-ratio:1.25;display:flex;align-items:flex-end;justify-content:flex-end;padding:2px 3px}
+.swatch em{font-style:normal;font-size:7.5px;font-weight:700;opacity:.8}
+.swatch:disabled{opacity:.35;cursor:not-allowed}
+.rangeRow{display:flex;align-items:center;gap:6px;margin:4px 0}
+.rangeRow input{flex:1;accent-color:var(--ac);height:3px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;
+ border:1px solid var(--ln2);vertical-align:-1px}
+
+@media (max-width: 780px){
+  .statStrip{top:auto;bottom:64px;left:8px;right:8px;overflow-x:auto}
+  .statStrip span{padding:4px 9px}
+  .ambInline{order:5}
+  .ambInline .amb{width:26px;height:26px;font-size:12px}
+  .panel{top:auto;bottom:112px;max-height:38vh}
+  .toolbox,.review{top:auto;bottom:112px;max-height:44vh}
+}
+
+/* the stats strip took the rail's old row */
+.rail{top:104px}
+.railToggle{top:104px}

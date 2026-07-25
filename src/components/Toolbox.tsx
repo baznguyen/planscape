@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useStore, type ItemKind, type Surface } from '@/store/useStore';
 import { ROOMS, roomById } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
+import PaintTab from './PaintTab';
 
 import { ASSETS, assetsIn } from '@/lib/model/assets';
 
@@ -16,17 +17,21 @@ const KIND: Record<string, ItemKind> = {
   audio: 'speaker', lighting: 'light', network: 'ap', climate: 'heater', furniture: 'furniture',
 };
 
-/** Catalogue finishes offered per surface, drawn from the material database. */
-const FINISH_CHOICES: Record<Surface, string[]> = {
-  floor: ['timberFloor', 'ceramicTile', 'carpet', 'slabOnGround'],
-  wall: ['studWall', 'brickVeneerR20', 'renderClad'],
-  ceiling: ['ceilingPlaster'],
-};
+/**
+ * Finishes are filtered by what each material declares it may be applied to,
+ * so brickwork is never offered as a ceiling lining and carpet is never offered
+ * as a wall. If a plan's own schedule is loaded it narrows this further.
+ */
+function finishChoices(surface: Surface): string[] {
+  return Object.values(MATERIALS)
+    .filter(m => m.appliesTo?.includes(surface))
+    .map(m => m.id);
+}
 
 export default function Toolbox() {
   const s = useStore();
   const open = s.drawer === 'tools';
-  const [tab, setTab] = useState<'place' | 'finish'>('place');
+  const [tab, setTab] = useState<'place' | 'finish' | 'paint'>('place');
   const [surface, setSurface] = useState<Surface>('floor');
   const file = useRef<HTMLInputElement>(null);
 
@@ -51,7 +56,8 @@ export default function Toolbox() {
       <section className={`toolbox ${open ? 'open' : ''}`}>
         <div className="tbTabs">
           <button className={tab === 'place' ? 'on' : ''} onClick={() => setTab('place')}>Add</button>
-          <button className={tab === 'finish' ? 'on' : ''} onClick={() => setTab('finish')}>Finishes</button>
+          <button className={tab === 'finish' ? 'on' : ''} onClick={() => setTab('finish')}>Finish</button>
+          <button className={tab === 'paint' ? 'on' : ''} onClick={() => setTab('paint')}>Paint</button>
         </div>
 
         {tab === 'place' && (
@@ -68,8 +74,11 @@ export default function Toolbox() {
                     <button key={a.id}
                       className={`tbItem ${s.placing?.type === a.id ? 'on' : ''}`}
                       data-tip={`${a.label} · ${a.mount.replace('-', ' ')}`}
-                      onClick={() => s.setPlacing(
-                        s.placing?.type === a.id ? null : { kind: KIND[a.category], type: a.id })}>
+                      onClick={() => {
+                        const arm = s.placing?.type === a.id ? null : { kind: KIND[a.category], type: a.id };
+                        s.setPlacing(arm);
+                        if (arm) s.setDrawer(null);   // get out of the way of the tap
+                      }}>
                       <i>{a.icon}</i>
                     </button>
                   ))}
@@ -93,6 +102,8 @@ export default function Toolbox() {
           </div>
         )}
 
+        {tab === 'paint' && <PaintTab />}
+
         {tab === 'finish' && (
           <div className="tbBody">
             {!room
@@ -107,7 +118,7 @@ export default function Toolbox() {
                 </div>
                 <div className="sec">Schedule</div>
                 <div className="tbGrid wide">
-                  {FINISH_CHOICES[surface].map(m => {
+                  {finishChoices(surface).map(m => {
                     const mat = MATERIALS[m];
                     if (!mat) return null;
                     const on = s.finishes[room.id]?.[surface]?.material === m;

@@ -7,6 +7,7 @@ import { WIND } from '@/lib/solvers/airflow';
 import { DEFAULT_APS, type AP } from '@/lib/solvers/rf';
 import { assetById } from '@/lib/model/assets';
 import { resolveMount } from '@/lib/model/mounting';
+import type { PaintAssignment, PaintScope } from '@/lib/model/paint';
 
 export type OverlayKey = 'dims'|'thermal'|'light'|'audio'|'air'|'hvac'|'wifi'|'elec'|'plan';
 export type ViewMode = 'walk' | 'plan' | 'street';
@@ -65,6 +66,7 @@ interface S {
   /** only one floating drawer at a time — they share the same corner on a phone */
   drawer: 'rail' | 'tools' | 'review' | null;
   finishes: Record<string, Partial<Record<Surface, Finish>>>;
+  paints: PaintAssignment[];
   setView:(v:ViewMode)=>void; setFloor:(f:0|1)=>void;
   setMonth:(m:number)=>void; setMinutes:(m:number)=>void; togglePlay:()=>void;
   toggleOverlay:(k:OverlayKey)=>void;
@@ -82,6 +84,9 @@ interface S {
   updateItem:(id:string,p:Partial<PlacedItem>)=>void; removeItem:(id:string)=>void;
   setFinish:(roomId:string,surface:Surface,f:Finish|null)=>void;
   clearFinishes:(roomId?:string)=>void;
+  addPaint:(p:Omit<PaintAssignment,'id'>)=>void;
+  removePaint:(id:string)=>void;
+  clearPaints:(scope?:PaintScope)=>void;
   setWalkInput:(f:number,s:number)=>void; resetView:()=>void; toggleEyeLevel:()=>void;
   setDrawer:(d:'rail'|'tools'|'review'|null)=>void;
 }
@@ -122,7 +127,7 @@ export const useStore = create<S>((set, get) => ({
   hvacOn: false, setpointCool: 24, setpointHeat: 20,
   thermal: {}, thermalDetail: {}, outdoorT: 25,
   selectedRoom: null, hoverRoom: null, showRoof: true, fov: 72,
-  items: [], placing: null, finishes: {},
+  items: [], placing: null, finishes: {}, paints: [],
   walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false, drawer: null,
 
   setView: v => set({ view: v, showRoof: v === 'plan' ? false : get().showRoof,
@@ -216,6 +221,9 @@ export const useStore = create<S>((set, get) => ({
     if (f) cur[surface] = f; else delete cur[surface];
     return { finishes: { ...s.finishes, [roomId]: cur } };
   }),
+  addPaint: p => set(s => ({ paints: [...s.paints, { ...p, id: `pa_${s.paints.length}_${p.scope}_${p.targetId}` }] })),
+  removePaint: id => set(s => ({ paints: s.paints.filter(p => p.id !== id) })),
+  clearPaints: scope => set(s => ({ paints: scope ? s.paints.filter(p => p.scope !== scope) : [] })),
   clearFinishes: roomId => set(s => {
     if (!roomId) return { finishes: {} };
     const n = { ...s.finishes }; delete n[roomId]; return { finishes: n };

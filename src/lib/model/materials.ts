@@ -20,43 +20,48 @@ export interface Material {
   rho: number;    // visible reflectance 0-1
   shgc?: number; tvis?: number;
   colour: string;
+  /**
+   * Surfaces this build-up may legitimately be specified on. A finishes picker
+   * that offers brickwork as a ceiling lining is not a picker, it is a trap.
+   */
+  appliesTo?: ('floor' | 'wall' | 'ceiling' | 'facade')[];
 }
 const M = (m: Material) => m;
 
 export const MATERIALS: Record<string, Material> = {
   brickVeneerR20: M({ id:'brickVeneerR20', label:'Brick veneer + R2.0 batts',
     U:0.51, kappa:155, alpha:{125:0.03,500:0.02,2000:0.04}, Rw:45,
-    rf:{'2.4':10,'5':15,'6':18}, rho:0.55, colour:'#e6d9c8' }),
+    rf:{'2.4':10,'5':15,'6':18}, rho:0.55, colour:'#e6d9c8', appliesTo:['wall','facade'] }),
   brickVeneerBare: M({ id:'brickVeneerBare', label:'Brick veneer, uninsulated',
     U:1.70, kappa:155, alpha:{125:0.03,500:0.02,2000:0.04}, Rw:45,
-    rf:{'2.4':10,'5':15,'6':18}, rho:0.55, colour:'#dfd0bb' }),
+    rf:{'2.4':10,'5':15,'6':18}, rho:0.55, colour:'#dfd0bb', appliesTo:['wall','facade'] }),
   renderClad: M({ id:'renderClad', label:'Render / grid-panel cladding + R2.5',
     U:0.44, kappa:42, alpha:{125:0.10,500:0.06,2000:0.05}, Rw:40,
-    rf:{'2.4':7,'5':11,'6':13}, rho:0.70, colour:'#f2efe8' }),
+    rf:{'2.4':7,'5':11,'6':13}, rho:0.70, colour:'#f2efe8', appliesTo:['wall','facade'] }),
   studWall: M({ id:'studWall', label:'Plasterboard stud wall (internal)',
     U:1.80, kappa:22, alpha:{125:0.29,500:0.05,2000:0.09}, Rw:36,
-    rf:{'2.4':3,'5':5,'6':6}, rho:0.72, colour:'#ffffff' }),
+    rf:{'2.4':3,'5':5,'6':6}, rho:0.72, colour:'#ffffff', appliesTo:['wall'] }),
   studWallAcoustic: M({ id:'studWallAcoustic', label:'Acoustic wall (insulated, 2 layers)',
     U:0.90, kappa:26, alpha:{125:0.30,500:0.08,2000:0.10}, Rw:50,
-    rf:{'2.4':4,'5':7,'6':8}, rho:0.72, colour:'#fbfbf9' }),
+    rf:{'2.4':4,'5':7,'6':8}, rho:0.72, colour:'#fbfbf9', appliesTo:['wall'] }),
   slabOnGround: M({ id:'slabOnGround', label:'Concrete slab on ground (waffle)',
     U:0.60, kappa:211, alpha:{125:0.01,500:0.02,2000:0.02}, Rw:55,
-    rf:{'2.4':20,'5':30,'6':34}, rho:0.30, colour:'#cfd0d1' }),
+    rf:{'2.4':20,'5':30,'6':34}, rho:0.30, colour:'#cfd0d1', appliesTo:['floor'] }),
   timberFloor: M({ id:'timberFloor', label:'Timber-look flooring on joists',
     U:1.10, kappa:28, alpha:{125:0.15,500:0.10,2000:0.07}, Rw:45,
-    rf:{'2.4':8,'5':13,'6':15}, rho:0.30, colour:'#d8c39a' }),
+    rf:{'2.4':8,'5':13,'6':15}, rho:0.30, colour:'#d8c39a', appliesTo:['floor'] }),
   carpet: M({ id:'carpet', label:'Carpet + underlay',
     U:1.05, kappa:26, alpha:{125:0.08,500:0.30,2000:0.60}, Rw:46,
-    rf:{'2.4':8,'5':13,'6':15}, rho:0.28, colour:'#d8d0c0' }),
+    rf:{'2.4':8,'5':13,'6':15}, rho:0.28, colour:'#d8d0c0', appliesTo:['floor'] }),
   ceramicTile: M({ id:'ceramicTile', label:'Ceramic tile',
     U:1.15, kappa:60, alpha:{125:0.01,500:0.02,2000:0.02}, Rw:48,
-    rf:{'2.4':8,'5':12,'6':14}, rho:0.45, colour:'#dbe4ea' }),
+    rf:{'2.4':8,'5':12,'6':14}, rho:0.45, colour:'#dbe4ea', appliesTo:['floor','wall'] }),
   roofR40: M({ id:'roofR40', label:'Colorbond roof + R4.0 ceiling batts',
     U:0.24, kappa:18, alpha:{125:0.20,500:0.06,2000:0.08}, Rw:42,
     rf:{'2.4':35,'5':42,'6':45}, rho:0.78, colour:'#b9bec3' }),
   ceilingPlaster: M({ id:'ceilingPlaster', label:'Plasterboard ceiling (square set)',
     U:1.60, kappa:20, alpha:{125:0.29,500:0.05,2000:0.09}, Rw:36,
-    rf:{'2.4':3,'5':5,'6':6}, rho:0.80, colour:'#f7f6f2' }),
+    rf:{'2.4':3,'5':5,'6':6}, rho:0.80, colour:'#f7f6f2', appliesTo:['ceiling'] }),
   glazingSingle: M({ id:'glazingSingle', label:'Single glazed, aluminium frame',
     U:5.70, kappa:8, alpha:{125:0.35,500:0.04,2000:0.02}, Rw:28,
     rf:{'2.4':2,'5':4,'6':5}, rho:0.10, shgc:0.75, tvis:0.80, colour:'#bfe0ec' }),

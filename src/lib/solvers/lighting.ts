@@ -54,7 +54,11 @@ export const MAINTENANCE = 0.8;
 export const dimToOutput = (dial: number) => dial * dial;
 /** Warm-dim: LED shifts toward candlelight as it dims. */
 export const warmDim = (dial: number) => Math.max(1800, Math.round(1800 + 900 * Math.sqrt(Math.max(dial, 0.02))));
-export function roomIlluminance(r: Room, lights: Light[]): { lux: number; target: number; lumens: number; uf: number; watts: number } {
+export function roomIlluminance(
+  r: Room, lights: Light[],
+  /** mean wall reflectance once paint is applied; omit to use the material default */
+  wallRho?: number,
+): { lux: number; target: number; lumens: number; uf: number; watts: number } {
   const A = roomArea(r);
   let lm = 0, W = 0;
   for (const l of lights) {
@@ -67,7 +71,10 @@ export function roomIlluminance(r: Room, lights: Light[]): { lux: number; target
     lm += lmEach * l.bulbs * l.dim;
     W += wEach * l.bulbs * l.dim;
   }
-  const uf = utilisationFactor(r);
+  let uf = utilisationFactor(r);
+  // A dark wall really does cost you light. Scale the utilisation factor by the
+  // painted reflectance against the 0.5 the UF table assumes for walls.
+  if (wallRho !== undefined) uf *= Math.max(0.55, Math.min(1.25, 0.55 + wallRho * 0.9));
   return { lux: (lm * uf * MAINTENANCE) / A, target: LUX_TARGET[r.use] ?? 100, lumens: lm, uf, watts: W };
 }
 /** Beam pool diameter and centre illuminance for one luminaire. */

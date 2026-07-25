@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { ROOMS, WALLS, ALL_OPENINGS, GEOM, roomArea, roomHeight, roomCentre } from '@/lib/model/building';
 import type { Room, Wall, Opening } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
+import { resolvePaint, roomsOnWall } from '@/lib/model/paint';
 import { useStore } from '@/store/useStore';
 import { solarState, surfaceIrradiance } from '@/lib/solvers/sun';
 import { rssiAt, rssiLabel } from '@/lib/solvers/rf';
@@ -32,13 +33,13 @@ export function tempColour(t: number): THREE.Color {
 }
 /** Loads an uploaded swatch as a tiling texture. Cached so a re-render is free. */
 const texCache = new Map<string, THREE.Texture>();
-function swatch(url: string, w: number, d: number): THREE.Texture {
-  const key = `${url}|${w}|${d}`;
+function swatch(url: string, repX: number, repY: number): THREE.Texture {
+  const key = `${url}|${repX.toFixed(2)}|${repY.toFixed(2)}`;
   const hit = texCache.get(key);
   if (hit) return hit;
   const t = new THREE.TextureLoader().load(url);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(Math.max(1, Math.round(w / 1.2)), Math.max(1, Math.round(d / 1.2)));
+  t.repeat.set(Math.max(0.2, repX), Math.max(0.2, repY));
   t.colorSpace = THREE.SRGBColorSpace;
   texCache.set(key, t);
   return t;
@@ -53,7 +54,7 @@ function Floors() {
       ?? MATERIALS[r.floorMat].colour;
     const t = thermal[r.id];
     const col = overlays.thermal && t !== undefined ? tempColour(t).getStyle() : base;
-    const map = !overlays.thermal && fin?.image ? swatch(fin.image, w, d) : null;
+    const map = !overlays.thermal && fin?.image ? swatch(fin.image, Math.max(1, w / 1.2), Math.max(1, d / 1.2)) : null;
     return (
       <mesh key={r.id} position={[c.x, yOf(r.floor) + 0.03, c.z]} receiveShadow
         onPointerOver={e => { e.stopPropagation(); setHover(r.id); }}
@@ -74,11 +75,29 @@ function Floors() {
   })}</>;
 }
 function Walls() {
-  const { floor } = useStore();
+  const { floor, paints } = useStore();
   const H = floor === 0 ? GEOM.H0 : GEOM.H1;
   return <>{WALLS.filter(w => w.floor === floor).map(w => {
     const dx = w.x2 - w.x1, dz = w.z2 - w.z1, L = Math.hypot(dx, dz);
     const ang = -Math.atan2(dz, dx), cx = (w.x1 + w.x2) / 2, cz = (w.z1 + w.z2) / 2;
+    // Each face resolves on its own room, so a wall between a white hall and a
+    // charcoal media room is white on one side and charcoal on the other.
+    const rooms = roomsOnWall(w);
+    const faceFinish = rooms.map(rid => {
+      // "external" means THIS FACE looks outside — an external wall still has an
+      // internal face, and a room-scoped colour has to reach it.
+      const pa = resolvePaint(paints, {
+        wallId: w.id, roomIds: rid ? [rid] : [], floor: w.floor,
+        external: w.external && rid === null,
+      });
+      if (!pa) return null;
+      return {
+        hex: pa.colour?.hex,
+        map: pa.wallpaper
+          ? swatch(pa.wallpaper.image, L / pa.wallpaper.repeatM, H / pa.wallpaper.repeatM)
+          : null,
+      };
+    });
     const col = MATERIALS[w.mat].colour;
     // project each opening onto the wall axis -> local offset from wall centre
     const ops = ALL_OPENINGS.filter(o => o.wallId === w.id).map(o => {
@@ -103,11 +122,22 @@ function Walls() {
     return (
       <group key={w.id} position={[cx, yOf(w.floor), cz]} rotation={[0, ang, 0]}>
         {parts.map((pt, i) => (
-          <mesh key={i} position={[pt.u, pt.y, 0]} castShadow receiveShadow>
-            <boxGeometry args={[pt.w, pt.h, GEOM.WT]} />
-            <meshStandardMaterial color={col} roughness={0.95} />
-            <Edges color="#2b2b29" threshold={15} />
-          </mesh>
+          <group key={i}>
+            <mesh position={[pt.u, pt.y, 0]} castShadow receiveShadow>
+              <boxGeometry args={[pt.w, pt.h, GEOM.WT]} />
+              <meshStandardMaterial color={col} roughness={0.95} />
+              <Edges color="#2b2b29" threshold={15} />
+            </mesh>
+            {/* a paint skin on each face, 2 mm proud so it never z-fights */}
+            {faceFinish.map((f, fi) => f && (
+              <mesh key={fi} position={[pt.u, pt.y, (fi === 0 ? 1 : -1) * (GEOM.WT / 2 + 0.002)]}
+                rotation={[0, fi === 0 ? 0 : Math.PI, 0]} receiveShadow>
+                <planeGeometry args={[pt.w, pt.h]} />
+                <meshStandardMaterial color={f.map ? '#ffffff' : (f.hex ?? col)} map={f.map}
+                  roughness={0.93} />
+              </mesh>
+            ))}
+          </group>
         ))}
       </group>
     );

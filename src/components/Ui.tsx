@@ -9,6 +9,7 @@ import { systemSummary, roomLoad } from '@/lib/solvers/hvac';
 import { analyseAirflow, WIND, seasonOf, ventCompliance } from '@/lib/solvers/airflow';
 import { rssiAt, rssiLabel } from '@/lib/solvers/rf';
 import { outdoorTemp, solarState } from '@/lib/solvers/sun';
+import { roomWallReflectance } from '@/lib/model/paint';
 import Toolbox from './Toolbox';
 import ReviewSection from './ReviewPanel';
 import WalkPad from './WalkPad';
@@ -23,6 +24,35 @@ const OVERLAYS: [OverlayKey, string, string][] = [
 ];
 /** Compact ambience presets: an icon carries the mood, the tooltip carries the numbers. */
 const AMB_ICON = ['🌅','🌞','🌇','🍽','🎬','🌙'];
+
+/* Inline SVG so the toggles read as drawings, not emoji. 16px, currentColor. */
+const I = {
+  walk: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="13" cy="4" r="1.6" /><path d="M11 21l1.6-5.2L10 13l.8-4.4 3.2-1 2.6 2.6 2.4 1" />
+    <path d="M10.8 8.6L7.6 10 6 13.4" /><path d="M12.6 15.8L16 21" /></svg>),
+  plan: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="1.5" /><path d="M3 10h9M12 3v18M12 15h9" /></svg>),
+  street: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 11l9-7 9 7" /><path d="M5.5 9.6V20h13V9.6" /><path d="M10 20v-5h4v5" /></svg>),
+  ground: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinejoin="round">
+    <rect x="3" y="13" width="18" height="7" rx="1" /><path d="M3 10h18" opacity=".35" /></svg>),
+  first: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="7" rx="1" /><path d="M3 14h18" opacity=".35" /></svg>),
+  roof: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12L12 4l10 8" /><path d="M6 12v8h12v-8" opacity=".4" /></svg>),
+  reset: (<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round">
+    <circle cx="12" cy="12" r="6.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>),
+};
+const VIEW_ICON = { walk: I.walk, plan: I.plan, street: I.street } as const;
+const VIEW_TIP = { walk: 'Walkthrough', plan: 'Plan view', street: 'Street view' } as const;
+
 const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(Math.floor(m % 60)).padStart(2,'0')}`;
 
 export default function Ui() {
@@ -64,12 +94,20 @@ export default function Ui() {
         <div className="brand"><b>SiteScape</b>
           <span title="101 Campbell St, Fairfield East · 28.14 × 11.0 m">101 Campbell St, Fairfield East</span></div>
         <div className="grow" />
-        <div className="seg">{(['walk','plan','street'] as const).map(v =>
-          <button key={v} className={s.view === v ? 'on' : ''} onClick={() => s.setView(v)}>{v}</button>)}</div>
-        <div className="seg">{[0,1].map(f =>
-          <button key={f} className={s.floor === f ? 'on' : ''} onClick={() => s.setFloor(f as 0|1)}>{f ? 'First' : 'Ground'}</button>)}</div>
-        <button className={`ib ${s.showRoof ? 'on' : ''}`} data-tip="Roof & ceilings" onClick={() => s.setShowRoof(!s.showRoof)}>▦</button>
-        <button className="ib" data-tip="Reset the view" onClick={s.resetView}>⌖</button>
+        <div className="seg ico">{(['walk','plan','street'] as const).map(v =>
+          <button key={v} className={s.view === v ? 'on' : ''} data-tip={VIEW_TIP[v]}
+            onClick={() => s.setView(v)}>{VIEW_ICON[v]}</button>)}</div>
+        <div className="seg ico">{([0,1] as const).map(f =>
+          <button key={f} className={s.floor === f ? 'on' : ''} data-tip={f ? 'First floor' : 'Ground floor'}
+            onClick={() => s.setFloor(f)}>{f ? I.first : I.ground}</button>)}</div>
+        <button className={`ib ${s.showRoof ? 'on' : ''}`} data-tip="Roof & ceilings"
+          onClick={() => s.setShowRoof(!s.showRoof)}>{I.roof}</button>
+        <button className="ib" data-tip="Reset the view" onClick={s.resetView}>{I.reset}</button>
+        {/* ambience lives on the same row as the roof toggle: it is a control, not a read-out */}
+        <div className="ambInline">{AMBIENCE.map((a, i) =>
+          <button key={a.name} className={`amb ${s.ambience === i ? 'on' : ''}`}
+            data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
+            onClick={() => s.applyAmbience(i)}>{AMB_ICON[i] ?? '💡'}</button>)}</div>
       </header>
 
       <button className="railToggle" onClick={() => s.setDrawer('rail')} aria-label="Overlays">
@@ -85,29 +123,24 @@ export default function Ui() {
         <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off" onClick={() => s.setHvac(!s.hvacOn)}>❄</button>
       </aside>
 
+      <div className="statStrip">
+        <span><i>Outdoor</i><b>{s.outdoorT.toFixed(1)} °C</b></span>
+        <span><i>Season</i><b>{seasonOf(s.month)} · {WIND[s.month][0]}°</b></span>
+        <span><i>Sun</i><b>{((sun.alt * 180) / Math.PI).toFixed(0)}°</b></span>
+        <span><i>Open</i><b>{openCount}/{ALL_OPENINGS.filter(o=>o.kind!=='cased').length}</b></span>
+        <span><i>Floor</i><b>{s.floor ? 'First' : 'Ground'}</b></span>
+      </div>
+
+      {/* the detail panel only appears when there is something to detail */}
       <section className={`panel ${panelOpen ? '' : 'collapsed'}`}>
         <button className="ph" onClick={() => setPanelOpen(o => !o)}>
-          <span>Live analysis · {s.floor ? 'First' : 'Ground'} floor</span>
+          <span>{sel ? sel.name : 'Analysis'}</span>
           <i>{panelOpen ? '−' : '+'}</i>
         </button>
         <div className="pb">
-          <div className="stat"><span>Outdoor</span><b>{s.outdoorT.toFixed(1)} °C</b></div>
-          <div className="stat"><span>Season / wind</span><b>{seasonOf(s.month)} · {WIND[s.month][0]}°</b></div>
-          <div className="stat"><span>Sun altitude</span><b>{((sun.alt * 180) / Math.PI).toFixed(0)}°</b></div>
-          <div className="stat"><span>Openings open</span><b>{openCount} / {ALL_OPENINGS.filter(o=>o.kind!=='cased').length}</b></div>
-
-          <div className="sec">Ambience</div>
-          <div className="ambRow">{AMBIENCE.map((a, i) =>
-            <button key={a.name} className={`amb ${s.ambience === i ? 'on' : ''}`}
-              data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
-              onClick={() => s.applyAmbience(i)}>{AMB_ICON[i] ?? '💡'}</button>)}</div>
-
-          {sel && <RoomPanel id={sel.id} />}
-
+          {sel ? <RoomPanel id={sel.id} />
+            : <div className="mini">Tap a room in the scene for its full analysis.</div>}
           <ReviewSection />
-
-          <div className="mini">Temperatures, area and air changes are shown on each room in the
-          scene — hover a room to highlight it, tap its chip to open the full analysis here.</div>
         </div>
       </section>
 
@@ -129,7 +162,10 @@ export default function Ui() {
 function RoomPanel({ id }: { id: string }) {
   const s = useStore();
   const r = roomById(id)!;
-  const lux = roomIlluminance(r, s.lights);
+  // painted walls change the utilisation factor, so a dark room really does
+  // read fewer lux here
+  const rho = roomWallReflectance(s.paints, r.id, 0.5);
+  const lux = roomIlluminance(r, s.lights, rho);
   const ac = analyseRoom(r, s.openIds);
   const load = roomLoad(r, s.month, s.minutes);
   const vent = ventCompliance(r, s.openIds);
@@ -150,6 +186,7 @@ function RoomPanel({ id }: { id: string }) {
       </>}
       <div className="stat"><span>Illuminance</span><b className={lux.lux >= lux.target * 0.85 ? 'ok' : 'wn'}>
         {lux.lux.toFixed(0)} / {lux.target} lx</b></div>
+      <div className="stat"><span>Wall reflectance</span><b>{(rho * 100).toFixed(0)}% LRV</b></div>
       <div className="stat"><span>RT60 @500 Hz</span><b className={ac.rt60Mid <= ac.target[1] ? 'ok' : 'wn'}>
         {ac.rt60Mid.toFixed(2)} s</b></div>
       <div className="stat"><span>Cooling load</span><b>{load.totalKw.toFixed(2)} kW · {load.outlets}×Ø{(load.outletDia*1000).toFixed(0)}</b></div>
