@@ -11,6 +11,7 @@ import { rssiAt, rssiLabel } from '@/lib/solvers/rf';
 import { outdoorTemp, solarState } from '@/lib/solvers/sun';
 import Toolbox from './Toolbox';
 import ReviewPanel from './ReviewPanel';
+import WalkPad from './WalkPad';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const OVERLAYS: [OverlayKey, string, string][] = [
@@ -67,7 +68,8 @@ export default function Ui() {
           <button key={v} className={s.view === v ? 'on' : ''} onClick={() => s.setView(v)}>{v}</button>)}</div>
         <div className="seg">{[0,1].map(f =>
           <button key={f} className={s.floor === f ? 'on' : ''} onClick={() => s.setFloor(f as 0|1)}>{f ? 'First' : 'Ground'}</button>)}</div>
-        <button className={`ib ${s.showRoof ? 'on' : ''}`} title="Roof & ceilings" onClick={() => s.setShowRoof(!s.showRoof)}>▦</button>
+        <button className={`ib ${s.showRoof ? 'on' : ''}`} data-tip="Roof & ceilings" onClick={() => s.setShowRoof(!s.showRoof)}>▦</button>
+        <button className="ib" data-tip="Reset the view" onClick={s.resetView}>⌖</button>
       </header>
 
       <button className="railToggle" onClick={() => setRailOpen(o => !o)} aria-label="Overlays">
@@ -109,6 +111,7 @@ export default function Ui() {
 
       <Toolbox />
       <ReviewPanel />
+      <WalkPad />
 
       <footer className="bar sun">
         <button className="play" onClick={s.togglePlay}>{s.playing ? '❚❚' : '▶'}</button>

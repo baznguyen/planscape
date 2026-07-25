@@ -146,26 +146,178 @@ function Openings() {
 }
 function Dimensions() {
   const { floor, overlays } = useStore();
+  const walls = WALLS.filter(w => w.floor === floor);
+  /**
+   * Proper dimension strings: one per wall, offset clear of the wall on the
+   * outward side, with witness lines and ticks. Drawn with depthTest off at
+   * waist height so the whole string floats over the render instead of being
+   * swallowed by furniture and joinery.
+   */
+  const { geom, labels } = useMemo(() => {
+    const y = yOf(floor) + 1.35;
+    const cx = GEOM.LEN / 2, cz = GEOM.WID / 2;
+    const pts: THREE.Vector3[] = [];
+    const labs: { x: number; z: number; mm: number }[] = [];
+    const seg = (ax: number, az: number, bx: number, bz: number) => {
+      pts.push(new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz));
+    };
+    for (const w of walls) {
+      const dx = w.x2 - w.x1, dz = w.z2 - w.z1;
+      const L = Math.hypot(dx, dz);
+      if (L < 0.45) continue;                       // too short to dimension legibly
+      const ux = dx / L, uz = dz / L;
+      // perpendicular, flipped so it always points away from the building centre
+      let nx = -uz, nz = ux;
+      const mx = (w.x1 + w.x2) / 2, mz = (w.z1 + w.z2) / 2;
+      if ((mx - cx) * nx + (mz - cz) * nz < 0) { nx = -nx; nz = -nz; }
+      const o = w.external ? 0.62 : 0.34;
+      const ax = w.x1 + nx * o, az = w.z1 + nz * o;
+      const bx = w.x2 + nx * o, bz = w.z2 + nz * o;
+      seg(ax, az, bx, bz);                                        // dimension line
+      seg(w.x1 + nx * 0.06, w.z1 + nz * 0.06, ax + nx * 0.1, az + nz * 0.1);   // witness
+      seg(w.x2 + nx * 0.06, w.z2 + nz * 0.06, bx + nx * 0.1, bz + nz * 0.1);
+      // 45-degree architectural ticks at each end
+      const t = 0.11;
+      seg(ax - (ux + nx) * t, az - (uz + nz) * t, ax + (ux + nx) * t, az + (uz + nz) * t);
+      seg(bx - (ux + nx) * t, bz - (uz + nz) * t, bx + (ux + nx) * t, bz + (uz + nz) * t);
+      labs.push({ x: (ax + bx) / 2 + nx * 0.16, z: (az + bz) / 2 + nz * 0.16, mm: Math.round(L * 1000) });
+    }
+    return { geom: new THREE.BufferGeometry().setFromPoints(pts), labels: labs, y };
+  }, [floor, walls]);
+
   if (!overlays.dims) return null;
-  const y = yOf(floor) + 0.05;
-  return <>{ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
-    const w = r.x1 - r.x0, d = r.z1 - r.z0, c = roomCentre(r);
-    const pts = (a: number[], b: number[]) =>
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]);
-    return (
-      <group key={r.id}>
-        <lineSegments geometry={pts([r.x0+0.1,y,r.z0+0.1],[r.x1-0.1,y,r.z0+0.1])}>
-          <lineBasicMaterial color="#b8873f" /></lineSegments>
-        <lineSegments geometry={pts([r.x0+0.1,y,r.z0+0.1],[r.x0+0.1,y,r.z1-0.1])}>
-          <lineBasicMaterial color="#b8873f" /></lineSegments>
-        <Html position={[c.x, y + 0.02, r.z0 + 0.25]} center distanceFactor={18} zIndexRange={[8,0]}>
-          <div className="dimChip">{w.toFixed(2)} m</div></Html>
-        <Html position={[r.x0 + 0.25, y + 0.02, c.z]} center distanceFactor={18} zIndexRange={[8,0]}>
-          <div className="dimChip">{d.toFixed(2)} m</div></Html>
-        <Html position={[c.x, y + 0.02, c.z]} center distanceFactor={16} zIndexRange={[8,0]}>
-          <div className="dimChip area"><b>{r.name}</b>{(w*d).toFixed(1)} m²</div></Html>
-      </group>);
-  })}</>;
+  const y = yOf(floor) + 1.35;
+  return (
+    <group renderOrder={45}>
+      <lineSegments geometry={geom} frustumCulled={false}>
+        <lineBasicMaterial color="#b8873f" transparent opacity={0.95} depthTest={false} fog={false} />
+      </lineSegments>
+      {labels.map((l, i) => (
+        <Html key={i} position={[l.x, y + 0.02, l.z]} center distanceFactor={17} zIndexRange={[14, 0]}>
+          <div className="dimChip">{l.mm.toLocaleString()}</div>
+        </Html>
+      ))}
+      {ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
+        const c = roomCentre(r);
+        return (
+          <Html key={r.id} position={[c.x, y + 0.02, c.z]} center distanceFactor={15} zIndexRange={[13, 0]}>
+            <div className="dimChip area">{r.name}<b>{roomArea(r).toFixed(1)} m²</b>
+              <i>{(r.x1 - r.x0).toFixed(2)} × {(r.z1 - r.z0).toFixed(2)} m</i></div>
+          </Html>
+        );
+      })}
+    </group>
+  );
+}
+/** Area of overlap between two rooms in plan. */
+function overlapArea(a: Room, b: { x0: number; x1: number; z0: number; z1: number }) {
+  const w = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0));
+  const d = Math.max(0, Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0));
+  return w * d;
+}
+/**
+ * Ceilings.
+ *
+ * Rendered whenever the camera is below ceiling level, and hidden the moment you
+ * rise above the slab — so walking through gives you a real ceiling overhead, and
+ * pulling up gives you the doll's-house cutaway without a toggle. A void on the
+ * floor above punches its hole out, which is what makes the living room read as
+ * the double-height space the drawing marks "VOID OVER".
+ */
+function Ceilings() {
+  const { floor, showRoof, finishes } = useStore();
+  const grp = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+  const H = floor === 0 ? GEOM.H0 : GEOM.H1;
+  const ceilY = yOf(floor) + H;
+  const voids = ROOMS.filter(r => r.void && r.floor === (floor + 1 as 0 | 1));
+  useFrame(() => {
+    if (grp.current) grp.current.visible = camera.position.y < ceilY + 0.25;
+  });
+  if (!showRoof) return null;
+  return (
+    <group ref={grp}>
+      {ROOMS.filter(r => r.floor === floor && !r.void && !r.outdoor).map(r => {
+        const A = roomArea(r);
+        const open = voids.reduce((a, v) => a + overlapArea(r, v), 0);
+        if (open > A * 0.5) return null;               // double-height: no ceiling
+        const c = roomCentre(r);
+        const fin = finishes[r.id]?.ceiling;
+        const col = fin?.colour ?? (fin?.material ? MATERIALS[fin.material]?.colour : undefined)
+          ?? MATERIALS[r.ceilMat].colour;
+        return (
+          <mesh key={r.id} position={[c.x, ceilY - 0.03, c.z]} receiveShadow>
+            <boxGeometry args={[r.x1 - r.x0, 0.06, r.z1 - r.z0]} />
+            <meshStandardMaterial color={col} roughness={0.96} side={THREE.DoubleSide} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+/**
+ * First-person movement. Translating the camera and the orbit target together
+ * keeps look-around on the drag gesture while the pad drives position, which is
+ * what makes it usable one-thumbed on a phone.
+ */
+function WalkMover() {
+  const controls = useThree(s => s.controls) as any;
+  const { camera } = useThree();
+  const fwd = useMemo(() => new THREE.Vector3(), []);
+  const right = useMemo(() => new THREE.Vector3(), []);
+  const step = useMemo(() => new THREE.Vector3(), []);
+  const UP = useMemo(() => new THREE.Vector3(0, 1, 0), []);
+  useFrame((_, dtRaw) => {
+    const st = useStore.getState();
+    const { f, s: strafe } = st.walkInput;
+    if (!controls || st.view === 'plan' || (f === 0 && strafe === 0)) return;
+    fwd.subVectors(controls.target, camera.position); fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) return;
+    fwd.normalize();
+    right.crossVectors(fwd, UP).normalize();
+    const d = 4.2 * Math.min(dtRaw, 0.05);
+    step.set(0, 0, 0).addScaledVector(fwd, f * d).addScaledVector(right, strafe * d);
+    camera.position.add(step);
+    controls.target.add(step);
+    controls.update();
+  });
+  return null;
+}
+/**
+ * Camera vantage. Two modes: the doll's-house overview, and standing inside at
+ * eye height. Eye level is what makes the pad a walkthrough rather than a pan —
+ * horizontal movement alone can never drop you below the ceiling.
+ */
+const EYE = 1.62;
+function TargetRig() {
+  const controls = useThree(s => s.controls) as any;
+  const { camera } = useThree();
+  const { view, floor, resetNonce, eyeLevel } = useStore();
+  useEffect(() => {
+    if (!controls) return;
+    const base = yOf(floor);
+    if (eyeLevel && view !== 'plan') {
+      // drop to standing height where you already are, keeping the current heading
+      const dir = new THREE.Vector3().subVectors(controls.target, camera.position);
+      dir.y = 0;
+      if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+      dir.normalize();
+      // if the overview left us outside the envelope, step in to the hall
+      const inside = camera.position.x > 1 && camera.position.x < GEOM.LEN - 1 &&
+                     camera.position.z > 1 && camera.position.z < GEOM.WID - 1;
+      const px = inside ? camera.position.x : 14, pz = inside ? camera.position.z : 5.5;
+      camera.position.set(px, base + EYE, pz);
+      controls.target.set(px + dir.x * 4, base + EYE * 0.95, pz + dir.z * 4);
+    } else if (view === 'street') {
+      controls.target.set(20, 3, 5.5); camera.position.set(46, 7, 5.5);
+    } else if (view === 'plan') {
+      controls.target.set(14, base + 1, 5.5); camera.position.set(14, 26, 26);
+    } else {
+      controls.target.set(14, base + 1.2, 5.5); camera.position.set(14, base + 14, 22);
+    }
+    controls.update();
+  }, [view, floor, resetNonce, eyeLevel, controls, camera]);
+  return null;
 }
 function ThermalLabels() {
   const { floor, overlays, thermal, thermalDetail } = useStore();
@@ -483,14 +635,16 @@ export default function Scene() {
           <circleGeometry args={[34, 96]} /><meshStandardMaterial color="#dfe6d4" />
         </mesh>
       )}
-      {interior && <><Floors /><Walls /><Openings /><Beams /><Furniture /><Garden /><Placed /></>}
+      {interior && <><Floors /><Walls /><Ceilings /><Openings /><Beams /><Furniture /><Garden /><Placed /></>}
       <Exterior />
       <ThermalLabels />
       <Dimensions />
       <PlanOverlay />
       <PlacementPlane />
       <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><Airflow />
-      <OrbitControls target={view==='street'?[20,3,5.5]:[14, yOf(floor) + 1, 5.5]} maxPolarAngle={Math.PI / 2.05} />
+      <TargetRig />
+      <WalkMover />
+      <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.05} />
     </Canvas>
   );
 }

@@ -47,6 +47,12 @@ interface S {
   showRoof: boolean; fov: number;
   items: PlacedItem[];
   placing: { kind: ItemKind; type: string } | null;
+  /** first-person movement input: forward and strafe, each -1..1 */
+  walkInput: { f: number; s: number };
+  /** bumped to ask the camera rig to return to the view's default vantage */
+  resetNonce: number;
+  /** true = standing inside at eye height; false = doll's-house overview */
+  eyeLevel: boolean;
   finishes: Record<string, Partial<Record<Surface, Finish>>>;
   setView:(v:ViewMode)=>void; setFloor:(f:0|1)=>void;
   setMonth:(m:number)=>void; setMinutes:(m:number)=>void; togglePlay:()=>void;
@@ -65,6 +71,7 @@ interface S {
   updateItem:(id:string,p:Partial<PlacedItem>)=>void; removeItem:(id:string)=>void;
   setFinish:(roomId:string,surface:Surface,f:Finish|null)=>void;
   clearFinishes:(roomId?:string)=>void;
+  setWalkInput:(f:number,s:number)=>void; resetView:()=>void; toggleEyeLevel:()=>void;
 }
 const seedLights = (): Light[] => {
   const out: Light[] = [];
@@ -96,8 +103,10 @@ export const useStore = create<S>((set, get) => ({
   thermal: {}, thermalDetail: {}, outdoorT: 25,
   selectedRoom: null, hoverRoom: null, showRoof: true, fov: 72,
   items: [], placing: null, finishes: {},
+  walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false,
 
-  setView: v => set({ view: v, showRoof: v === 'plan' ? false : get().showRoof }),
+  setView: v => set({ view: v, showRoof: v === 'plan' ? false : get().showRoof,
+    eyeLevel: v === 'plan' ? false : get().eyeLevel }),
   setFloor: f => set({ floor: f }),
   setMonth: m => { set({ month: m }); get().resettleThermal(); },
   setMinutes: m => set({ minutes: m }),
@@ -135,6 +144,10 @@ export const useStore = create<S>((set, get) => ({
   setHover: id => set({ hoverRoom: id }),
   setShowRoof: b => set({ showRoof: b }),
   setFov: n => set({ fov: n }),
+
+  setWalkInput: (f, s2) => set({ walkInput: { f, s: s2 } }),
+  resetView: () => set(st => ({ resetNonce: st.resetNonce + 1, eyeLevel: false })),
+  toggleEyeLevel: () => set(st => ({ eyeLevel: !st.eyeLevel })),
 
   setPlacing: p => set({ placing: p }),
   /** Drop whatever is armed at a point on the floor. Routed to the right collection. */
