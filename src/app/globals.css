@@ -446,7 +446,7 @@ main{position:fixed;inset:0}
 .placeHint{background:rgba(24,32,44,.78);backdrop-filter:blur(8px)}
 
 /* five tabs need two rows at this width */
-.toolbox .tbTabs.wrap button{flex:1 0 28%;margin-bottom:3px}
+.toolbox .tbTabs.wrap button{flex:1 0 22%;margin-bottom:0}
 
 /* ------------------------------------------------------------
    Desktop lanes
@@ -475,7 +475,7 @@ main{position:fixed;inset:0}
   .toolbox{top:196px;bottom:auto;left:10px;right:10px;width:auto;
    max-height:calc(100vh - 380px)}
   .toolbox .tbGrid{grid-template-columns:repeat(6,1fr)}
-  .toolbox .tbTabs.wrap button{flex:1 0 18%}
+  .toolbox .tbTabs.wrap button{flex:1 0 22%}
 
   /* pad clear of the stats strip and the timelapse */
   .walkPad{bottom:126px;right:10px}

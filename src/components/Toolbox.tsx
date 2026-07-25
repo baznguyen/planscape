@@ -5,7 +5,6 @@ import { ROOMS, roomById } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
 import PaintTab from './PaintTab';
 import ReviewSection from './ReviewPanel';
-import RoomPanel from './RoomPanel';
 
 import { ASSETS, assetsIn } from '@/lib/model/assets';
 
@@ -33,7 +32,7 @@ function finishChoices(surface: Surface): string[] {
 export default function Toolbox() {
   const s = useStore();
   const open = s.drawer === 'tools';
-  const [tab, setTab] = useState<'place' | 'finish' | 'paint' | 'room' | 'check'>('place');
+  const [tab, setTab] = useState<'place' | 'finish' | 'paint' | 'check'>('place');
   const [surface, setSurface] = useState<Surface>('floor');
   const file = useRef<HTMLInputElement>(null);
 
@@ -61,7 +60,6 @@ export default function Toolbox() {
           <button className={tab === 'place' ? 'on' : ''} onClick={() => setTab('place')}>Add</button>
           <button className={tab === 'finish' ? 'on' : ''} onClick={() => setTab('finish')}>Finish</button>
           <button className={tab === 'paint' ? 'on' : ''} onClick={() => setTab('paint')}>Paint</button>
-          <button className={tab === 'room' ? 'on' : ''} onClick={() => setTab('room')}>Room</button>
           <button className={tab === 'check' ? 'on' : ''} onClick={() => setTab('check')}>Check</button>
         </div>
 
@@ -90,6 +88,15 @@ export default function Toolbox() {
                 </div>
               </div>
             ))}
+            {room && (
+              <>
+                <div className="sec">{room.name} lighting</div>
+                <button className="btn" onClick={() => s.autoLightRoom(room.id)}>
+                  Auto-design to AS/NZS 1680</button>
+                <button className="btn" onClick={() => s.toggleRoomLights(room.id)}>
+                  Toggle room lights</button>
+              </>
+            )}
             {s.items.length > 0 && (
               <>
                 <div className="sec">Placed · {placed}</div>
@@ -108,13 +115,6 @@ export default function Toolbox() {
         )}
 
         {tab === 'paint' && <PaintTab />}
-
-        {tab === 'room' && (
-          <div className="tbBody">
-            {room ? <RoomPanel id={room.id} />
-              : <div className="mini hint">Tap a room in the scene</div>}
-          </div>
-        )}
 
         {tab === 'check' && <div className="tbBody"><ReviewSection /></div>}
 
