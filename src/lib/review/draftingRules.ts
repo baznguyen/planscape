@@ -1,0 +1,331 @@
+/**
+ * Drafting logic.
+ *
+ * Every rule in here exists because a defect got past me and into a render.
+ * The pattern each time was the same: the geometry was encoded, but the thing a
+ * draftsperson *knows* about that geometry was not — so nothing could tell the
+ * model was wrong. Writing those judgements down as executable rules is the only
+ * way they generalise to the next customer's plan instead of being re-learned by
+ * hand on every job.
+ *
+ * Rules are deliberately model-agnostic: they read ROOMS / WALLS / OPENINGS /
+ * STAIRS and nothing about this particular house. A rule that only works for
+ * 101 Campbell Street is not a rule, it is a patch.
+ */
+import {
+  ROOMS, WALLS, ALL_OPENINGS, STAIRS, BEAMS, GEOM,
+  roomArea, roomHeight, type Room,
+} from '@/lib/model/building';
+
+export type RuleSeverity = 'critical' | 'major' | 'minor' | 'pass';
+export interface RuleFinding {
+  rule: string;
+  severity: RuleSeverity;
+  title: string;
+  detail: string;
+  /** where the rule comes from — a code clause or a drafting convention */
+  authority: string;
+  /** the mistake that taught us to check this */
+  learnedFrom?: string;
+  subject?: string;
+}
+
+const HABITABLE: Room['use'][] = ['living', 'bed', 'kitchen', 'study'];
+const overlap1D = (a0: number, a1: number, b0: number, b1: number) =>
+  Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+const rectOverlap = (a: Room, b: Room) =>
+  overlap1D(a.x0, a.x1, b.x0, b.x1) * overlap1D(a.z0, a.z1, b.z0, b.z1);
+
+/* ------------------------------------------------------------------ *
+ * 1. Geometry integrity
+ * ------------------------------------------------------------------ */
+
+/** Two rooms cannot occupy the same floor area. Sounds obvious; is easy to break. */
+function overlappingRooms(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  for (let i = 0; i < ROOMS.length; i++) {
+    for (let j = i + 1; j < ROOMS.length; j++) {
+      const a = ROOMS[i], b = ROOMS[j];
+      if (a.floor !== b.floor || a.void || b.void) continue;
+      const ov = rectOverlap(a, b);
+      if (ov < 0.25) continue;
+      const frac = ov / Math.min(roomArea(a), roomArea(b));
+      out.push({
+        rule: 'geometry/no-overlap',
+        severity: frac > 0.25 ? 'critical' : 'major',
+        title: `${a.name} and ${b.name} overlap`,
+        detail: `${ov.toFixed(2)} m² of floor is claimed by both rooms. Areas will be double counted and the render will z-fight.`,
+        authority: 'Drafting convention — rooms partition the floor plate',
+        learnedFrom: 'moving a first floor room without moving its neighbour',
+        subject: `${a.id}/${b.id}`,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * An opening must actually sit on the wall it names, and must touch both rooms
+ * it claims to join. This is the rule that caught five dead doors at once.
+ */
+function openingsAreAttached(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  for (const o of ALL_OPENINGS) {
+    const w = WALLS.find(x => x.id === o.wallId);
+    if (!w) {
+      out.push({
+        rule: 'geometry/opening-wall-exists', severity: 'critical',
+        title: `Opening ${o.id} names a wall that does not exist`,
+        detail: `wallId "${o.wallId}" is not in the wall schedule.`,
+        authority: 'Drafting convention — every opening belongs to a wall',
+        subject: o.id,
+      });
+      continue;
+    }
+    // distance from the opening centre to the wall segment
+    const dx = w.x2 - w.x1, dz = w.z2 - w.z1;
+    const L2 = dx * dx + dz * dz;
+    const t = L2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((o.x - w.x1) * dx + (o.z - w.z1) * dz) / L2));
+    const px = w.x1 + t * dx, pz = w.z1 + t * dz;
+    const dist = Math.hypot(o.x - px, o.z - pz);
+    if (dist > 0.3) {
+      out.push({
+        rule: 'geometry/opening-on-wall', severity: 'major',
+        title: `Opening ${o.id} is not on wall ${w.id}`,
+        detail: `The opening centre is ${(dist * 1000).toFixed(0)} mm off the wall it belongs to, so the wall will not be punched and the joinery will sit inside solid geometry.`,
+        authority: 'Drafting convention — openings are cut from their host wall',
+        learnedFrom: 'windows rendering invisible because walls were drawn as solid boxes',
+        subject: o.id,
+      });
+    }
+    // both named rooms must reach the opening
+    for (const side of [o.a, o.b]) {
+      if (!side) continue;
+      const r = ROOMS.find(x => x.id === side);
+      if (!r) continue;
+      const near = o.x >= r.x0 - 0.35 && o.x <= r.x1 + 0.35 &&
+                   o.z >= r.z0 - 0.35 && o.z <= r.z1 + 0.35;
+      if (!near) {
+        out.push({
+          rule: 'geometry/opening-abuts-rooms', severity: 'major',
+          title: `Opening ${o.id} does not touch ${r.name}`,
+          detail: `The opening is recorded as joining ${r.name}, but that room's extents do not reach it. The door leads nowhere.`,
+          authority: 'Drafting convention — an opening joins the two spaces either side of it',
+          learnedFrom: 'four first floor doors left pointing at rooms that had been moved',
+          subject: o.id,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** A wall that stops in mid-air leaves a hole nothing will ever close. */
+function danglingWalls(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  const meets = (x: number, z: number, floor: 0 | 1, self: string) =>
+    WALLS.some(w => {
+      if (w.floor !== floor || w.id === self) return false;
+      const dx = w.x2 - w.x1, dz = w.z2 - w.z1;
+      const L2 = dx * dx + dz * dz;
+      const t = L2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((x - w.x1) * dx + (z - w.z1) * dz) / L2));
+      return Math.hypot(x - (w.x1 + t * dx), z - (w.z1 + t * dz)) < 0.45;
+    });
+  // A wall may legitimately stop where two rooms meet — that is an open-plan
+  // threshold, not a hole. Only an end floating in the middle of a room is wrong.
+  const onRoomEdge = (x: number, z: number, floor: 0 | 1) =>
+    ROOMS.some(r => r.floor === floor && !r.void &&
+      x >= r.x0 - 0.5 && x <= r.x1 + 0.5 && z >= r.z0 - 0.5 && z <= r.z1 + 0.5 &&
+      (Math.abs(x - r.x0) < 0.5 || Math.abs(x - r.x1) < 0.5 ||
+       Math.abs(z - r.z0) < 0.5 || Math.abs(z - r.z1) < 0.5));
+  for (const w of WALLS) {
+    if (w.external) continue;
+    const ends: [number, number][] = [[w.x1, w.z1], [w.x2, w.z2]];
+    for (const [x, z] of ends) {
+      if (meets(x, z, w.floor, w.id)) continue;
+      if (onRoomEdge(x, z, w.floor)) continue;
+      out.push({
+        rule: 'geometry/wall-terminates', severity: 'minor',
+        title: `Wall ${w.id} stops in mid-air`,
+        detail: `The end at (${x.toFixed(2)}, ${z.toFixed(2)}) does not meet another wall. Either it should run further or an opening should close it.`,
+        authority: 'Drafting convention — internal walls terminate on another wall',
+        subject: w.id,
+      });
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * 2. Habitability — the checks a certifier makes
+ * ------------------------------------------------------------------ */
+
+/** NCC Vol 2: habitable rooms need glazing of at least 10% of floor area. */
+function naturalLight(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  // An open plan is lit collectively: a servery with no window of its own is not
+  // a dark room if it is open to a wall of glass three metres away. Rooms sharing
+  // a `zone` are assessed as one space, which is how a certifier reads them.
+  const groups = new Map<string, Room[]>();
+  for (const r of ROOMS) {
+    if (r.outdoor || r.void || !HABITABLE.includes(r.use)) continue;
+    const key = r.zone ? `${r.floor}:${r.zone}` : r.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+  for (const [, rooms] of groups) {
+    const ids = new Set(rooms.map(r => r.id));
+    const area = rooms.reduce((a, r) => a + roomArea(r), 0);
+    const glazed = ALL_OPENINGS
+      .filter(o => (o.kind === 'window' || o.kind === 'slider') &&
+                   ((o.a && ids.has(o.a)) || (o.b && ids.has(o.b))))
+      .reduce((a, o) => a + o.w * o.h, 0);
+    const need = area * 0.10;
+    if (glazed + 1e-6 < need) {
+      const label = rooms.length > 1 ? `${rooms[0].zone} zone (${rooms.map(r => r.name).join(', ')})` : rooms[0].name;
+      out.push({
+        rule: 'habitability/natural-light',
+        severity: glazed === 0 ? 'major' : 'minor',
+        title: `${label} is short of natural light`,
+        detail: `${glazed.toFixed(2)} m² of glazing against ${need.toFixed(2)} m² required for ${area.toFixed(1)} m² of habitable floor.`,
+        authority: 'NCC Volume Two 3.8.4 — natural light, 10% of floor area',
+        subject: rooms[0].id,
+      });
+    }
+  }
+  return out;
+}
+
+/** Ceiling heights by use. A corridor may be lower than a bedroom. */
+function ceilingHeights(): RuleFinding[] {
+  const need = (u: Room['use']) =>
+    HABITABLE.includes(u) ? 2.4 : u === 'garage' ? 2.1 : 2.1;
+  const out: RuleFinding[] = [];
+  for (const r of ROOMS) {
+    if (r.outdoor || r.void) continue;
+    const h = roomHeight(r), n = need(r.use);
+    if (h + 1e-6 < n) {
+      out.push({
+        rule: 'habitability/ceiling-height', severity: 'major',
+        title: `${r.name} ceiling is too low`,
+        detail: `${(h * 1000).toFixed(0)} mm against ${(n * 1000).toFixed(0)} mm required for a ${r.use} space.`,
+        authority: 'NCC Volume Two — ceiling heights, 2,400 habitable / 2,100 other',
+        subject: r.id,
+      });
+    }
+  }
+  return out;
+}
+
+/** A bedroom you cannot fit a bed and a wardrobe in is a study with ambition. */
+function roomProportions(): RuleFinding[] {
+  const MIN: Partial<Record<Room['use'], { area: number; side: number }>> = {
+    bed: { area: 7.0, side: 2.4 },
+    living: { area: 10.0, side: 2.7 },
+    kitchen: { area: 5.0, side: 1.8 },
+    bath: { area: 2.0, side: 0.9 },
+  };
+  const out: RuleFinding[] = [];
+  for (const r of ROOMS) {
+    if (r.outdoor || r.void) continue;
+    const m = MIN[r.use];
+    if (!m) continue;
+    if (r.zone) continue;   // assessed as part of its open-plan zone, not alone
+    const A = roomArea(r), side = Math.min(r.x1 - r.x0, r.z1 - r.z0);
+    if (A + 1e-6 < m.area || side + 1e-6 < m.side) {
+      out.push({
+        rule: 'habitability/room-proportions', severity: 'minor',
+        title: `${r.name} is undersized for its use`,
+        detail: `${A.toFixed(1)} m² with a ${(side * 1000).toFixed(0)} mm narrow dimension; a ${r.use} space wants at least ${m.area} m² and ${(m.side * 1000).toFixed(0)} mm.`,
+        authority: 'Residential design convention — usable room proportions',
+        subject: r.id,
+      });
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * 3. Structure
+ * ------------------------------------------------------------------ */
+
+/**
+ * The rule that started all of this: a line between two spaces annotated
+ * "BEAM OVER" is a downstand beam, not a wall. Modelling it as a wall closes an
+ * open plan that should read through.
+ */
+function beamsAreNotWalls(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  for (const b of BEAMS) {
+    const horiz = Math.abs(b.z2 - b.z1) < 1e-6;
+    const clash = WALLS.find(w => {
+      if (w.floor !== b.floor) return false;
+      const wHoriz = Math.abs(w.z2 - w.z1) < 1e-6;
+      if (wHoriz !== horiz) return false;
+      const off = horiz ? Math.abs(w.z1 - b.z1) : Math.abs(w.x1 - b.x1);
+      if (off > 0.2) return false;
+      const ov = horiz
+        ? overlap1D(Math.min(w.x1, w.x2), Math.max(w.x1, w.x2), Math.min(b.x1, b.x2), Math.max(b.x1, b.x2))
+        : overlap1D(Math.min(w.z1, w.z2), Math.max(w.z1, w.z2), Math.min(b.z1, b.z2), Math.max(b.z1, b.z2));
+      return ov > 0.5;
+    });
+    if (clash) {
+      out.push({
+        rule: 'structure/beam-not-wall', severity: 'critical',
+        title: `${b.label} is modelled as a wall`,
+        detail: `Wall ${clash.id} sits on the line of ${b.id}. The drawing marks this "BEAM OVER" — a downstand beam. Building it as a wall closes a space that should read through.`,
+        authority: 'Drawing annotation — "BEAM OVER TO ENG DETAILS"',
+        learnedFrom: 'the living / family / kitchen open plan being walled off',
+        subject: b.id,
+      });
+    }
+  }
+  return out;
+}
+
+/** NCC 11.2 stair geometry — rise, going, and the 2R+G comfort rule. */
+function stairGeometry(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  for (const st of STAIRS) {
+    const rise = (st.fromFloor === 0 ? GEOM.H0 : GEOM.H1) / st.risers;
+    const going = Math.hypot(st.x1 - st.x0, st.z1 - st.z0) / (st.risers - 1);
+    const rg = 2 * rise * 1000 + going * 1000;
+    const problems: string[] = [];
+    if (rise < 0.115 || rise > 0.19) problems.push(`rise ${(rise * 1000).toFixed(0)} mm outside 115–190`);
+    if (going < 0.24 || going > 0.355) problems.push(`going ${(going * 1000).toFixed(0)} mm outside 240–355`);
+    if (rg < 550 || rg > 700) problems.push(`2R+G ${rg.toFixed(0)} mm outside 550–700`);
+    if (problems.length) {
+      out.push({
+        rule: 'structure/stair-geometry', severity: 'major',
+        title: `Stair ${st.id} is not a walkable flight`,
+        detail: problems.join('; ') + '.',
+        authority: 'NCC Volume Two 11.2 — stair construction',
+        learnedFrom: 'the stair existing only in the renderer, where nothing could measure it',
+        subject: st.id,
+      });
+    } else {
+      out.push({
+        rule: 'structure/stair-geometry', severity: 'pass',
+        title: `Stair ${st.id} geometry is compliant`,
+        detail: `${st.risers} risers at ${(rise * 1000).toFixed(0)} mm, going ${(going * 1000).toFixed(0)} mm, 2R+G ${rg.toFixed(0)} mm.`,
+        authority: 'NCC Volume Two 11.2 — stair construction',
+        subject: st.id,
+      });
+    }
+  }
+  return out;
+}
+
+/** Run the whole rule set. */
+export function runDraftingRules(): RuleFinding[] {
+  return [
+    ...overlappingRooms(),
+    ...openingsAreAttached(),
+    ...danglingWalls(),
+    ...beamsAreNotWalls(),
+    ...stairGeometry(),
+    ...naturalLight(),
+    ...ceilingHeights(),
+    ...roomProportions(),
+  ];
+}

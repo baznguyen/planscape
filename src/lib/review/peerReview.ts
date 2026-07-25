@@ -12,11 +12,12 @@
 import { ROOMS, WALLS, BEAMS, GEOM, roomArea } from '@/lib/model/building';
 import { PLAN_TRACE, CERTIFIED_AREAS, CERTIFIED_ENVELOPE, type TraceSeg } from '@/lib/model/planTrace';
 import { analyseCirculation, CIRCULATION_RULES } from './circulation';
+import { runDraftingRules } from './draftingRules';
 
 export type Severity = 'pass' | 'minor' | 'major' | 'critical';
 export interface Finding {
   id: string;
-  discipline: 'geometry' | 'area' | 'structure' | 'envelope' | 'circulation';
+  discipline: 'geometry' | 'area' | 'structure' | 'envelope' | 'circulation' | 'habitability';
   severity: Severity;
   title: string;
   detail: string;
@@ -254,6 +255,21 @@ export function runPeerReview(): ReviewReport {
       reference: 'AS 1428.1 — 820 mm clear door opening',
       modelValue: `${(d.width * 1000).toFixed(0)} mm`,
       planValue: `${(d.required * 1000).toFixed(0)} mm min`,
+    });
+  }
+
+  // ---- 7. drafting logic ----------------------------------------------------------
+  // Generalised rules, not tied to this plan. Each one is a judgement a
+  // draftsperson makes automatically, written down so it applies to every job.
+  for (const r of runDraftingRules()) {
+    const disc: Finding['discipline'] =
+      r.rule.startsWith('habitability') ? 'habitability'
+      : r.rule.startsWith('structure') ? 'structure' : 'geometry';
+    findings.push({
+      id: `d_${r.rule}_${r.subject ?? ''}`,
+      discipline: disc, severity: r.severity,
+      title: r.title, detail: r.detail,
+      reference: r.learnedFrom ? `${r.authority} · learned from ${r.learnedFrom}` : r.authority,
     });
   }
 

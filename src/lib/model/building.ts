@@ -92,16 +92,16 @@ export const ROOMS: Room[] = [
   // ---- first ----
   R('f_sit','Sitting Room',1,6.8,11.5,0.9,5.0,'living','carpet',['sofa','rug','tv','curtain'],2,{tour:true}),
   R('f_void','Void',1,6.8,11.5,5.2,10.1,'living','timberFloor',[],0,{void:true}),
-  R('f_std','Study',1,11.7,15.0,0.9,4.4,'study','timberFloor',['desk','robe','curtain'],1,{tour:true}),
+  R('f_std','Study',1,11.7,15.0,0.9,5.0,'study','timberFloor',['desk','robe','curtain'],1,{tour:true}),
   R('f_bd2','Bedroom 2',1,11.7,16.2,6.35,10.1,'bed','carpet',['bed','robe','desk','curtain'],1,{tour:true}),
   R('f_wr2','WIR 2',1,16.4,18.4,6.35,7.9,'store','carpet',['robe']),
   R('f_bth','Bathroom',1,16.4,19.0,7.9,10.1,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
-  R('f_bd4','Bedroom 4',1,19.2,23.4,6.35,10.1,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('f_lnd','Landing',1,13.0,21.5,4.4,6.35,'hall','timberFloor',[],0,{skylight:true}),
-  R('f_pri','Principal Suite',1,19.6,24.0,0.9,4.2,'bed','carpet',['bed','rug','curtain'],2,{tour:true}),
+  R('f_bd4','Bedroom 4',1,19.2,25.9,6.35,10.1,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('f_lnd','Landing',1,13.0,21.5,5.0,6.35,'hall','timberFloor',[],0,{skylight:true}),
+  R('f_pri','Principal Suite',1,19.6,25.9,2.6,5.0,'bed','carpet',['bed','rug','curtain'],2,{tour:true}),
   R('f_wr1','WIR 1',1,19.6,21.6,0.9,2.4,'store','carpet',['robe']),
   R('f_ens','Ensuite',1,21.8,24.0,0.9,2.6,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
-  R('f_bal','Balcony',1,24.2,25.4,3.0,6.7,'outdoor','timberFloor',[],0,{outdoor:true,tour:true}),
+  R('f_bal','Balcony',1,26.05,27.53,3.0,6.0,'outdoor','timberFloor',[],0,{outdoor:true,tour:true}),
 ];
 
 const W = (id:string,floor:0|1,x1:number,z1:number,x2:number,z2:number,mat:string,external:boolean,orient:Orient):Wall =>
@@ -112,11 +112,13 @@ export const WALLS: Wall[] = [
   W('gw_s',0,6.6,0,28.03,0,'brickVeneerR20',true,'S'),
   W('gw_n',0,6.6,11,28.03,11,'brickVeneerR20',true,'N'),
   W('gw_e1',0,28.03,0,28.03,3.5,'brickVeneerR20',true,'E'),
-  W('gw_e2',0,28.03,6.5,28.03,11,'brickVeneerR20',true,'E'),
   W('gw_w',0,6.6,0,6.6,11,'brickVeneerR20',true,'W'),
   // ground internal
-  W('gi_1',0,25.93,3.5,25.93,3.9,'studWall',false,'E'),
-  W('gi_2',0,25.93,5.3,25.93,6.5,'studWall',false,'E'),
+  W('gi_1',0,25.93,2.92,25.93,5.13,'studWall',false,'E'),
+  // The garage's own street wall carries the panel lift door. East of it the
+  // drawing marks "LINE OF DWELLING OVER" — driveway under the first floor
+  // cantilever, not enclosed garage.
+  W('gi_20',0,25.93,5.13,25.93,10.81,'brickVeneerR20',false,'E'),
   // NOTE: there is deliberately NO wall at x=11.6 or z=5.7 — the plan's 11,280 clear
   // span makes Living/Family-Dining/Kitchen/Meals a single open-plan volume.
   W('gi_5',0,16.0,0.1,16.0,2.8,'studWall',false,'E'),
@@ -134,26 +136,26 @@ export const WALLS: Wall[] = [
   W('gi_15',0,21.4,1.95,23.0,1.95,'studWall',false,'N'),
   W('gi_16',0,23.9,3.0,23.9,5.13,'studWall',false,'E'),
   // first external shell
-  W('fw_s',1,6.6,0.72,25.4,0.72,'renderClad',true,'S'),
-  W('fw_n',1,6.6,10.28,25.4,10.28,'renderClad',true,'N'),
-  W('fw_e1',1,25.4,0.72,25.4,3.0,'renderClad',true,'E'),
-  W('fw_e2',1,25.4,6.7,25.4,10.28,'renderClad',true,'E'),
+  W('fw_s',1,6.6,0.72,27.58,0.72,'renderClad',true,'S'),
+  W('fw_n',1,6.6,10.28,27.58,10.28,'renderClad',true,'N'),
+  W('fw_e1',1,27.58,0.72,27.58,3.0,'renderClad',true,'E'),
+  W('fw_e2',1,27.58,6.0,27.58,10.28,'renderClad',true,'E'),
   W('fw_w',1,6.6,0.72,6.6,10.28,'renderClad',true,'W'),
   // first internal
-  W('fi_1',1,24.1,0.72,24.1,3.0,'studWall',false,'E'),
-  W('fi_2',1,24.1,6.7,24.1,10.28,'studWall',false,'E'),
+  W('fi_1',1,25.95,0.72,25.95,5.0,'studWall',false,'E'),
+  W('fi_2',1,25.95,6.0,25.95,10.28,'studWall',false,'E'),
   W('fi_3',1,11.6,0.9,11.6,5.0,'studWall',false,'E'),
   W('fi_4',1,6.8,5.1,11.6,5.1,'studWall',false,'N'),
   W('fi_5',1,11.6,5.1,11.6,10.28,'studWall',false,'E'),
-  W('fi_6',1,11.7,4.4,15.1,4.4,'studWall',false,'N'),
+  W('fi_6',1,11.7,5.0,15.1,5.0,'studWall',false,'N'),
   W('fi_7',1,15.1,0.72,15.1,4.5,'studWall',false,'E'),
-  W('fi_8',1,16.3,5.1,16.3,10.28,'studWallAcoustic',false,'E'),
+  W('fi_8',1,16.3,6.35,16.3,10.28,'studWallAcoustic',false,'E'),
   W('fi_9',1,16.3,7.9,19.1,7.9,'studWallAcoustic',false,'N'),
   W('fi_10',1,19.1,7.9,19.1,10.28,'studWallAcoustic',false,'E'),
   W('fi_11',1,13.0,6.35,21.5,6.35,'studWall',false,'N'),
-  W('fi_12',1,19.5,4.3,19.5,6.35,'studWall',false,'E'),
-  W('fi_13',1,19.5,4.3,24.1,4.3,'studWallAcoustic',false,'N'),
-  W('fi_14',1,19.5,0.72,19.5,4.3,'studWallAcoustic',false,'E'),
+  W('fi_12',1,19.5,5.0,19.5,6.35,'studWall',false,'E'),
+  W('fi_13',1,19.5,5.0,25.95,5.0,'studWallAcoustic',false,'N'),
+  W('fi_14',1,19.5,0.72,19.5,5.0,'studWallAcoustic',false,'E'),
   W('fi_15',1,19.6,2.45,21.7,2.45,'studWall',false,'N'),
   W('fi_16',1,21.7,0.72,21.7,2.45,'studWall',false,'E'),
   W('fi_17',1,18.4,6.35,18.4,7.9,'studWall',false,'E'),
@@ -168,7 +170,7 @@ export interface Stair {
 }
 /** Straight flight against the north side of the hall, under the first floor landing. */
 export const STAIRS: Stair[] = [
-  { id:'st_1', fromFloor:0, x0:20.45, x1:23.85, z0:4.05, z1:5.10, width:1.05, risers:14,
+  { id:'st_1', fromFloor:0, x0:20.45, x1:23.85, z0:4.05, z1:5.10, width:1.05, risers:15,
     connects:['g_hal','f_lnd'] },
 ];
 
@@ -187,9 +189,9 @@ const O = (
 /** Windows are auto-distributed along external walls; doors/sliders are explicit. */
 export const OPENINGS: Opening[] = [
   // ground doors
-  O('d_entry',0,'gw_e1',28.03,5.0,1.1,2.34,0,'door','doorSolid',0.9,'g_ent',null,'E'),
+  O('d_entry',0,'gi_1',25.93,4.4,1.1,2.34,0,'door','doorSolid',0.9,'g_ent',null,'E'),
   O('d_alf',0,'gw_w',6.6,5.35,3.6,2.15,0,'slider','glazingSingle',0.5,'g_mea',null,'W'),
-  O('d_gar',0,'gw_e2',28.03,8.6,4.81,2.143,0,'garage','garageDoor',0.9,'g_gar',null,'E'),
+  O('d_gar',0,'gi_20',25.93,8.3,4.81,2.143,0,'garage','garageDoor',0.9,'g_gar',null,'E'),
   O('d_g1',0,'gi_9',19.62,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
   O('d_g2',0,'gi_9',24.6,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
   O('d_g3',0,'gi_13',21.4,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
@@ -202,12 +204,12 @@ export const OPENINGS: Opening[] = [
   O('d_g8',0,'gi_5',16.0,1.6,0.85,2.34,0,'door','doorSolid',0.9,'g_kit','g_wip','E'),
   O('d_g9',0,'gi_16',23.9,4.6,1.5,2.34,0,'cased','openAperture',1,'g_ent','g_hal','E',true),
   // first doors
-  O('d_bal',1,'fw_e1',25.4,4.85,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri',null,'E'),
+  O('d_bal',1,'fi_1',25.95,3.6,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri','f_bal','E'),
   O('d_f1',1,'fi_3',11.6,3.6,0.9,2.34,0,'door','doorSolid',0.9,'f_sit','f_std','E'),
-  O('d_f2',1,'fi_6',13.4,4.4,0.9,2.34,0,'door','doorSolid',0.9,'f_std','f_lnd','N'),
+  O('d_f2',1,'fi_6',13.4,5.0,0.9,2.34,0,'door','doorSolid',0.9,'f_std','f_lnd','N'),
   O('d_f3',1,'fi_11',13.9,6.35,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd2','N'),
   O('d_f4',1,'fi_9',17.6,7.9,0.8,2.34,0,'door','doorSolid',0.9,'f_wr2','f_bth','N'),
-  O('d_f5',1,'fi_13',21.0,4.3,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_pri','N'),
+  O('d_f5',1,'fi_13',21.0,5.0,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_pri','N'),
   O('d_f6',1,'fi_11',20.3,6.35,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd4','N'),
   O('d_f7',1,'fi_16',21.7,1.6,0.7,2.34,0,'door','doorSolid',0.9,'f_wr1','f_ens','E'),
   O('d_f8',1,'fi_15',20.5,2.45,0.8,2.34,0,'door','doorSolid',0.9,'f_pri','f_wr1','N'),
