@@ -9,14 +9,19 @@ import { systemSummary, roomLoad } from '@/lib/solvers/hvac';
 import { analyseAirflow, WIND, seasonOf, ventCompliance } from '@/lib/solvers/airflow';
 import { rssiAt, rssiLabel } from '@/lib/solvers/rf';
 import { outdoorTemp, solarState } from '@/lib/solvers/sun';
+import Toolbox from './Toolbox';
+import ReviewPanel from './ReviewPanel';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const OVERLAYS: [OverlayKey, string, string][] = [
   ['thermal','Thermal — live heat map','🌡'], ['dims','Dimensions & areas','📐'],
   ['light','Lighting — lux & beams','💡'], ['audio','Acoustics — SPL waves','🔊'],
   ['air','Natural airflow','💨'], ['hvac','Air conditioning','❄'],
   ['wifi','WiFi coverage','📶'], ['elec','Electrical','⚡'],
+  ['plan','Drawing overlay — dashed wall lines','📄'],
 ];
+/** Compact ambience presets: an icon carries the mood, the tooltip carries the numbers. */
+const AMB_ICON = ['🌅','🌞','🌇','🍽','🎬','🌙'];
 const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(Math.floor(m % 60)).padStart(2,'0')}`;
 
 export default function Ui() {
@@ -90,9 +95,10 @@ export default function Ui() {
           <div className="stat"><span>Openings open</span><b>{openCount} / {ALL_OPENINGS.filter(o=>o.kind!=='cased').length}</b></div>
 
           <div className="sec">Ambience</div>
-          <div className="grid">{AMBIENCE.map((a, i) =>
-            <button key={a.name} className={`chip ${s.ambience === i ? 'on' : ''}`}
-              onClick={() => s.applyAmbience(i)}>{a.name}<em>{a.lux} lx · {a.kelvin}K</em></button>)}</div>
+          <div className="ambRow">{AMBIENCE.map((a, i) =>
+            <button key={a.name} className={`amb ${s.ambience === i ? 'on' : ''}`}
+              data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
+              onClick={() => s.applyAmbience(i)}>{AMB_ICON[i] ?? '💡'}</button>)}</div>
 
           {sel && <RoomPanel id={sel.id} />}
 
@@ -100,6 +106,9 @@ export default function Ui() {
           scene — hover a room to highlight it, tap its chip to open the full analysis here.</div>
         </div>
       </section>
+
+      <Toolbox />
+      <ReviewPanel />
 
       <footer className="bar sun">
         <button className="play" onClick={s.togglePlay}>{s.playing ? '❚❚' : '▶'}</button>

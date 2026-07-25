@@ -15,6 +15,9 @@ import { kelvinToRgb, beamPool } from '@/lib/solvers/lighting';
 import { WIND } from '@/lib/solvers/airflow';
 import Furniture from './Furniture';
 import Exterior, { Garden } from './Exterior';
+import PlanOverlay, { Beams } from './PlanOverlay';
+import Airflow from './Airflow';
+import Placed, { PlacementPlane } from './Placed';
 
 const yOf = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
 /** Temperature -> colour ramp (blue 16C -> green 22 -> yellow 27 -> red 34+). */
@@ -27,20 +30,37 @@ export function tempColour(t: number): THREE.Color {
   }
   return new THREE.Color(stops[stops.length - 1][1]);
 }
+/** Loads an uploaded swatch as a tiling texture. Cached so a re-render is free. */
+const texCache = new Map<string, THREE.Texture>();
+function swatch(url: string, w: number, d: number): THREE.Texture {
+  const key = `${url}|${w}|${d}`;
+  const hit = texCache.get(key);
+  if (hit) return hit;
+  const t = new THREE.TextureLoader().load(url);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(Math.max(1, Math.round(w / 1.2)), Math.max(1, Math.round(d / 1.2)));
+  t.colorSpace = THREE.SRGBColorSpace;
+  texCache.set(key, t);
+  return t;
+}
 function Floors() {
-  const { floor, overlays, thermal, setHover, setSelected, hoverRoom } = useStore();
+  const { floor, overlays, thermal, setHover, setSelected, hoverRoom, finishes } = useStore();
   return <>{ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
     const A = roomArea(r), c = roomCentre(r);
-    const base = MATERIALS[r.floorMat].colour;
+    const w = r.x1 - r.x0, d = r.z1 - r.z0;
+    const fin = finishes[r.id]?.floor;
+    const base = fin?.colour ?? (fin?.material ? MATERIALS[fin.material]?.colour : undefined)
+      ?? MATERIALS[r.floorMat].colour;
     const t = thermal[r.id];
     const col = overlays.thermal && t !== undefined ? tempColour(t).getStyle() : base;
+    const map = !overlays.thermal && fin?.image ? swatch(fin.image, w, d) : null;
     return (
       <mesh key={r.id} position={[c.x, yOf(r.floor) + 0.03, c.z]} receiveShadow
         onPointerOver={e => { e.stopPropagation(); setHover(r.id); }}
         onPointerOut={() => setHover(null)}
         onClick={e => { e.stopPropagation(); setSelected(r.id); }}>
-        <boxGeometry args={[r.x1 - r.x0, 0.06, r.z1 - r.z0]} />
-        <meshStandardMaterial color={col} roughness={0.9}
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color={map ? '#ffffff' : col} map={map} roughness={0.9}
           emissive={hoverRoom === r.id ? '#b8873f' : '#000000'} emissiveIntensity={hoverRoom === r.id ? 0.35 : 0} />
         <Edges color="#2b2b29" threshold={15} />
       </mesh>
@@ -282,35 +302,6 @@ function AudioOverlay() {
   return <Waves points={sp.map(s => ({ x: s.x, y: s.y, z: s.z }))}
     colour="#2f7fd0" maxR={Math.min(9, (343 / acFreq) * 3)} speed={0.5} count={4} />;
 }
-function AirOverlay() {
-  const { floor, overlays, month, openIds } = useStore();
-  const ref = useRef<THREE.Points>(null);
-  const geo = useMemo(() => {
-    const n = 400, p = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { p[i*3] = Math.random()*GEOM.LEN; p[i*3+1] = 0.4+Math.random()*2.0; p[i*3+2] = Math.random()*GEOM.WID; }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); return g;
-  }, []);
-  const dir = useMemo(() => {
-    const [bearing] = WIND[month]; const rad = ((bearing + 180) * Math.PI) / 180;
-    return new THREE.Vector3(Math.sin(rad), 0, Math.cos(rad)).normalize();
-  }, [month]);
-  useFrame((_, dt) => {
-    if (!overlays.air || !ref.current) return;
-    const p = ref.current.geometry.attributes.position as THREE.BufferAttribute;
-    const sp = dt * 3.0 * (openIds.size > 3 ? 1 : 0.25);
-    for (let i = 0; i < p.count; i++) {
-      let x = p.getX(i) + dir.x * sp, z = p.getZ(i) + dir.z * sp;
-      if (x > GEOM.LEN) x = 0; if (x < 0) x = GEOM.LEN;
-      if (z > GEOM.WID) z = 0; if (z < 0) z = GEOM.WID;
-      p.setX(i, x); p.setZ(i, z);
-    }
-    p.needsUpdate = true;
-  });
-  if (!overlays.air) return null;
-  return <points ref={ref} geometry={geo} position={[0, yOf(floor), 0]}>
-    <pointsMaterial color="#3f9fd0" size={0.12} transparent opacity={0.8} />
-  </points>;
-}
 function RoomLights() {
   const { floor, lights } = useStore();
   const grouped = useMemo(() => {
@@ -492,11 +483,13 @@ export default function Scene() {
           <circleGeometry args={[34, 96]} /><meshStandardMaterial color="#dfe6d4" />
         </mesh>
       )}
-      {interior && <><Floors /><Walls /><Openings /><Furniture /><Garden /></>}
+      {interior && <><Floors /><Walls /><Openings /><Beams /><Furniture /><Garden /><Placed /></>}
       <Exterior />
       <ThermalLabels />
       <Dimensions />
-      <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><AirOverlay />
+      <PlanOverlay />
+      <PlacementPlane />
+      <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><Airflow />
       <OrbitControls target={view==='street'?[20,3,5.5]:[14, yOf(floor) + 1, 5.5]} maxPolarAngle={Math.PI / 2.05} />
     </Canvas>
   );

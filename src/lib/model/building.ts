@@ -19,6 +19,16 @@ export interface Room {
   occupants: number;
   outdoor?: boolean; void?: boolean; skylight?: boolean;
   tour?: boolean;
+  /** rooms sharing a zone are one continuous volume with no dividing wall */
+  zone?: string;
+}
+/** A downstand beam: reads as structure on the plan, must NOT be modelled as a wall. */
+export interface Beam {
+  id: string; floor: 0 | 1;
+  x1: number; z1: number; x2: number; z2: number;
+  /** depth of the downstand below the ceiling (m) */
+  drop: number;
+  label: string;
 }
 export interface Wall {
   id: string; floor: 0 | 1;
@@ -58,20 +68,26 @@ const R = (
 export const ROOMS: Room[] = [
   // ---- ground ----
   R('g_alf','Alfresco',0,0,6.5,3.1,7.6,'outdoor','timberFloor',['dining','sofa'],0,{outdoor:true}),
-  R('g_liv','Living',0,6.7,11.7,5.9,10.9,'living','timberFloor',['sofa','sofa','rug','tv','curtain'],2,{tour:true}),
-  R('g_fam','Family & Dining',0,11.7,17.7,5.9,10.9,'living','timberFloor',['dining','sofa','rug','curtain'],3,{tour:true}),
-  R('g_mea','Meals',0,6.7,11.6,0.1,5.6,'living','timberFloor',['dining','sofa','curtain'],2,{tour:true}),
-  R('g_kit','Kitchen',0,11.6,16.0,0.1,5.6,'kitchen','timberFloor',['fridge','oven','dining'],2,{tour:true}),
+  // --- open-plan core: LIVING / FAMILY-DINING / KITCHEN / MEALS are ONE volume on the
+  // plan (an 11,280 clear span). The line the drawing shows between them is
+  // "BEAM OVER TO ENG DETAILS" — a downstand beam, not a wall. See BEAMS below.
+  R('g_liv','Living',0,6.7,11.7,5.6,10.9,'living','timberFloor',['sofa','sofa','rug','tv','curtain'],2,{tour:true,zone:'open'}),
+  R('g_fam','Family & Dining',0,11.7,17.7,5.6,10.9,'living','timberFloor',['dining','sofa','rug','curtain'],3,{tour:true,zone:'open'}),
+  R('g_mea','Meals',0,6.7,11.6,0.1,5.6,'living','timberFloor',['dining','sofa','curtain'],2,{tour:true,zone:'open'}),
+  R('g_kit','Kitchen',0,11.6,16.0,0.1,5.6,'kitchen','timberFloor',['island','fridge','oven','bench'],2,{tour:true,zone:'open'}),
   R('g_wip','Walk-in Pantry',0,16.0,17.7,0.1,2.8,'store','ceramicTile',['robe']),
-  R('g_pdr','Powder',0,17.85,19.05,6.5,8.6,'bath','ceramicTile',['bath']),
-  R('g_ldy','Laundry',0,17.85,19.05,8.6,10.9,'laundry','ceramicTile',['robe','bath']),
-  R('g_gar','Double Garage',0,19.2,25.9,6.5,10.9,'garage','slabOnGround',['car','car'],0,{tour:true}),
+  R('g_srv','Servery',0,16.0,17.7,2.8,5.6,'kitchen','timberFloor',['bench'],0,{zone:'open'}),
+  R('g_pdr','Powder',0,17.85,19.94,5.6,7.9,'bath','ceramicTile',['bath']),
+  R('g_wil','Walk-in Linen',0,17.85,19.94,7.9,9.0,'store','ceramicTile',['robe']),
+  R('g_ldy','Laundry',0,17.85,19.94,9.0,10.9,'laundry','ceramicTile',['robe','bath']),
+  // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
+  R('g_gar','Double Garage',0,19.94,25.93,5.3,10.78,'garage','slabOnGround',['car','car'],0,{tour:true}),
   R('g_gst','Guest Bedroom',0,17.9,21.4,0.1,3.6,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
   R('g_en2','Ensuite 2',0,21.4,23.0,0.1,1.95,'bath','ceramicTile',['bath']),
   R('g_bd5','Bedroom 5',0,23.0,25.9,0.1,3.8,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('g_hal','Hall',0,17.85,23.9,3.8,6.4,'hall','timberFloor',[]),
-  R('g_ent','Entry Foyer',0,23.9,25.9,3.9,6.4,'hall','ceramicTile',[],0,{tour:true}),
-  R('g_por','Porch',0,25.9,28.03,3.5,6.5,'outdoor','ceramicTile',[],0,{outdoor:true}),
+  R('g_hal','Hall',0,17.85,23.9,3.8,5.3,'hall','timberFloor',[]),
+  R('g_ent','Entry Foyer',0,23.9,25.93,3.9,5.3,'hall','ceramicTile',[],0,{tour:true}),
+  R('g_por','Porch',0,25.93,28.03,3.5,6.5,'outdoor','ceramicTile',[],0,{outdoor:true}),
   // ---- first ----
   R('f_sit','Sitting Room',1,6.8,11.5,0.9,5.0,'living','carpet',['sofa','rug','tv','curtain'],2,{tour:true}),
   R('f_void','Void',1,6.8,11.5,5.2,10.1,'living','timberFloor',[],0,{void:true}),
@@ -98,23 +114,23 @@ export const WALLS: Wall[] = [
   W('gw_e2',0,28.03,6.5,28.03,11,'brickVeneerR20',true,'E'),
   W('gw_w',0,6.6,0,6.6,11,'brickVeneerR20',true,'W'),
   // ground internal
-  W('gi_1',0,25.9,3.5,25.9,3.9,'studWall',false,'E'),
-  W('gi_2',0,25.9,6.4,25.9,6.5,'studWall',false,'E'),
-  W('gi_3',0,11.6,0.1,11.6,5.6,'studWall',false,'E'),
-  W('gi_4',0,6.7,5.7,17.7,5.7,'studWall',false,'N'),
+  W('gi_1',0,25.93,3.5,25.93,3.9,'studWall',false,'E'),
+  W('gi_2',0,25.93,5.3,25.93,6.5,'studWall',false,'E'),
+  // NOTE: there is deliberately NO wall at x=11.6 or z=5.7 — the plan's 11,280 clear
+  // span makes Living/Family-Dining/Kitchen/Meals a single open-plan volume.
   W('gi_5',0,16.0,0.1,16.0,2.8,'studWall',false,'E'),
   W('gi_6',0,16.0,2.8,17.7,2.8,'studWall',false,'N'),
   W('gi_7',0,17.78,0,17.78,3.6,'studWall',false,'E'),
-  W('gi_8',0,17.78,6.4,17.78,11,'studWallAcoustic',false,'E'),
-  W('gi_9',0,17.85,3.7,25.9,3.7,'studWall',false,'N'),
-  W('gi_10',0,19.05,6.4,19.05,11,'studWallAcoustic',false,'E'),
-  W('gi_11',0,17.85,8.6,19.05,8.6,'studWall',false,'N'),
-  W('gi_12',0,19.2,6.4,25.9,6.4,'studWallAcoustic',false,'N'),
+  W('gi_8',0,17.78,5.6,17.78,11,'studWallAcoustic',false,'E'),
+  W('gi_9',0,17.85,3.7,25.93,3.7,'studWall',false,'N'),
+  W('gi_10',0,19.94,5.3,19.94,11,'studWallAcoustic',false,'E'),
+  W('gi_11',0,17.85,7.9,19.94,7.9,'studWall',false,'N'),
+  W('gi_18',0,17.85,9.0,19.94,9.0,'studWall',false,'N'),
+  W('gi_12',0,19.94,5.3,25.93,5.3,'studWallAcoustic',false,'N'),
   W('gi_13',0,21.4,0.1,21.4,3.6,'studWall',false,'E'),
   W('gi_14',0,23.0,0.1,23.0,3.8,'studWall',false,'E'),
   W('gi_15',0,21.4,1.95,23.0,1.95,'studWall',false,'N'),
-  W('gi_16',0,23.9,3.9,23.9,4.4,'studWall',false,'E'),
-  W('gi_17',0,23.9,5.9,23.9,6.4,'studWall',false,'E'),
+  W('gi_16',0,23.9,3.9,23.9,5.3,'studWall',false,'E'),
   // first external shell
   W('fw_s',1,6.6,0.72,25.4,0.72,'renderClad',true,'S'),
   W('fw_n',1,6.6,10.28,25.4,10.28,'renderClad',true,'N'),
@@ -141,6 +157,13 @@ export const WALLS: Wall[] = [
   W('fi_17',1,18.4,5.1,18.4,6.7,'studWall',false,'E'),
 ];
 
+/** Downstand beams the plan marks "BEAM OVER TO ENG DETAILS". Rendered as soffits. */
+export const BEAMS: Beam[] = [
+  { id:'b_open_ns', floor:0, x1:6.7,  z1:5.6, x2:17.7, z2:5.6,  drop:0.34, label:'Beam over — open plan' },
+  { id:'b_kit_ew',  floor:0, x1:11.6, z1:0.1, x2:11.6, z2:5.6,  drop:0.28, label:'Beam over — kitchen bulkhead' },
+  { id:'b_gar',     floor:0, x1:19.94,z1:8.0, x2:25.93,z2:8.0,  drop:0.30, label:'Beam over — garage' },
+];
+
 const O = (
   id:string,floor:0|1,wallId:string,x:number,z:number,w:number,h:number,sill:number,
   kind:OpeningKind,mat:string,openableFrac:number,a:string|null,b:string|null,orient:Orient,defaultOpen=false
@@ -155,12 +178,13 @@ export const OPENINGS: Opening[] = [
   O('d_g1',0,'gi_9',19.62,3.7,0.9,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
   O('d_g2',0,'gi_9',24.6,3.7,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
   O('d_g3',0,'gi_13',21.4,1.05,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
-  O('d_g4',0,'gi_11',18.45,8.6,0.8,2.34,0,'door','doorSolid',0.9,'g_pdr','g_ldy','N'),
-  O('d_g5',0,'gi_10',19.05,7.5,0.85,2.34,0,'door','doorSolid',0.9,'g_gar','g_pdr','E'),
-  O('d_g6',0,'gi_12',22.5,6.4,2.4,2.34,0,'door','doorSolid',0.9,'g_gar','g_hal','N'),
+  O('d_g4',0,'gi_11',18.6,7.9,0.8,2.34,0,'door','doorSolid',0.9,'g_pdr','g_wil','N'),
+  O('d_g4b',0,'gi_18',18.6,9.0,0.8,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
+  O('d_g5',0,'gi_10',19.94,6.6,0.85,2.34,0,'door','doorSolid',0.9,'g_gar','g_pdr','E'),
+  O('d_g6',0,'gi_12',22.5,5.3,2.4,2.34,0,'door','doorSolid',0.9,'g_gar','g_hal','N'),
   O('d_g7',0,'gi_7',17.78,4.9,1.0,2.34,0,'cased','openAperture',1,'g_hal','g_fam','E',true),
   O('d_g8',0,'gi_5',16.0,1.6,0.85,2.34,0,'door','doorSolid',0.9,'g_kit','g_wip','E'),
-  O('d_g9',0,'gi_16',23.9,5.15,1.5,2.34,0,'cased','openAperture',1,'g_ent','g_hal','E',true),
+  O('d_g9',0,'gi_16',23.9,4.6,1.5,2.34,0,'cased','openAperture',1,'g_ent','g_hal','E',true),
   // first doors
   O('d_bal',1,'fw_e1',25.4,4.85,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri',null,'E'),
   O('d_f1',1,'fi_3',11.6,3.6,0.9,2.34,0,'door','doorSolid',0.9,'f_sit','f_std','E'),
