@@ -75,10 +75,9 @@ export default function Toolbox() {
         {tab === 'place' && (
           <div className="tbBody">
             {s.placing
-              ? <div className="mini armed">Armed: <b>{s.placing.type}</b> — tap the floor.
+              ? <div className="mini armed"><b>{s.placing.type}</b> — tap the floor
                   <button className="lnk" onClick={() => s.setPlacing(null)}>cancel</button></div>
-              : <div className="mini">Pick an item, then tap where it goes. Right-click a placed
-                  item to remove it; tap a heater to switch it on or off.</div>}
+              : <div className="mini hint">Tap an item, then tap the floor</div>}
             {CATALOGUE.map(g => (
               <div key={g.group}>
                 <div className="sec">{g.group}</div>
@@ -95,18 +94,18 @@ export default function Toolbox() {
                 </div>
               </div>
             ))}
-            {placed > 0 && (
+            {s.items.length > 0 && (
               <>
-                <div className="sec">Placed — {placed}</div>
+                <div className="sec">Placed · {placed}</div>
                 {s.items.map(i => (
                   <button key={i.id} className={`rowbtn ${i.on ? 'open' : ''}`}
                     onClick={() => s.updateItem(i.id, { on: !i.on })}>
-                    <span>{i.type} · {roomById(i.room)?.name ?? '—'}</span>
-                    <b>{i.kind === 'heater' ? `${i.power.toFixed(1)} kW` : ''} {i.on ? 'ON' : 'off'}</b>
+                    <span>{i.type}</span>
+                    <b>{i.on ? 'on' : 'off'}</b>
                   </button>
                 ))}
                 <button className="btn" onClick={() => s.items.forEach(i => s.removeItem(i.id))}>
-                  Remove all placed items</button>
+                  Clear all</button>
               </>
             )}
           </div>
@@ -115,8 +114,7 @@ export default function Toolbox() {
         {tab === 'finish' && (
           <div className="tbBody">
             {!room
-              ? <div className="mini">Tap a room in the scene first — finishes apply to the
-                  selected room.</div>
+              ? <div className="mini hint">Tap a room first</div>
               : <>
                 <div className="sec">{room.name}</div>
                 <div className="tbTabs sm">
@@ -125,7 +123,7 @@ export default function Toolbox() {
                       onClick={() => setSurface(sf)}>{sf}</button>
                   ))}
                 </div>
-                <div className="sec">Standard schedule</div>
+                <div className="sec">Schedule</div>
                 <div className="tbGrid wide">
                   {FINISH_CHOICES[surface].map(m => {
                     const mat = MATERIALS[m];
@@ -139,16 +137,14 @@ export default function Toolbox() {
                     );
                   })}
                 </div>
-                <div className="sec">Your own finish</div>
+                <div className="sec">Upload</div>
                 <input ref={file} type="file" accept="image/*" hidden
                   onChange={e => upload(e.target.files?.[0] ?? null)} />
-                <button className="btn" onClick={() => file.current?.click()}>
-                  Upload a finish image…</button>
+                <button className="btn" onClick={() => file.current?.click()}>Choose image…</button>
                 {s.finishes[room.id]?.[surface] && (
                   <>
-                    <div className="mini">Applied: <b>{s.finishes[room.id]![surface]!.name}</b></div>
-                    <button className="btn" onClick={() => s.setFinish(room.id, surface, null)}>
-                      Reset to schedule</button>
+                    <div className="mini">{s.finishes[room.id]![surface]!.name}</div>
+                    <button className="btn" onClick={() => s.setFinish(room.id, surface, null)}>Reset</button>
                   </>
                 )}
               </>}

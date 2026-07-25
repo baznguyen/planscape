@@ -10,7 +10,7 @@ import { analyseAirflow, WIND, seasonOf, ventCompliance } from '@/lib/solvers/ai
 import { rssiAt, rssiLabel } from '@/lib/solvers/rf';
 import { outdoorTemp, solarState } from '@/lib/solvers/sun';
 import Toolbox from './Toolbox';
-import ReviewPanel from './ReviewPanel';
+import ReviewSection from './ReviewPanel';
 import WalkPad from './WalkPad';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -104,13 +104,14 @@ export default function Ui() {
 
           {sel && <RoomPanel id={sel.id} />}
 
+          <ReviewSection />
+
           <div className="mini">Temperatures, area and air changes are shown on each room in the
           scene — hover a room to highlight it, tap its chip to open the full analysis here.</div>
         </div>
       </section>
 
       <Toolbox />
-      <ReviewPanel />
       <WalkPad />
 
       <footer className="bar sun">

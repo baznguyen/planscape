@@ -335,3 +335,33 @@ main{position:fixed;inset:0}
   .reviewTab{top:124px;left:52px}
   .toolbox,.review{top:170px;bottom:auto;left:8px;right:8px;max-height:46vh}
 }
+
+/* ============================================================
+   Assets toolbox — compact popup, not a panel
+   Narrow, tight padding, icons carry the meaning and the tooltip
+   carries the name. Peer review no longer floats on the canvas.
+============================================================ */
+.reviewTab{display:none}
+
+.toolbox{width:186px;max-height:min(56vh,430px);border-radius:11px}
+.toolbox .tbTabs{padding:5px 5px 0;gap:3px}
+.toolbox .tbTabs button{padding:4px 0;font-size:9.5px;border-radius:6px}
+.toolbox .tbTabs.sm button{font-size:8.5px;padding:3px 0}
+.toolbox .tbBody{padding:3px 6px 8px}
+.toolbox .sec{margin:7px 0 3px;font-size:7.5px;letter-spacing:.6px}
+.toolbox .tbGrid{grid-template-columns:repeat(5,1fr);gap:3px}
+.toolbox .tbGrid.wide{grid-template-columns:repeat(5,1fr)}
+.toolbox .tbItem{border-radius:7px;font-size:12px}
+.toolbox .swatch{border-radius:7px;border-width:1.5px}
+.toolbox .mini{font-size:9px;line-height:1.4}
+.toolbox .mini.hint{color:var(--ink3);padding:2px 0}
+.toolbox .armed{padding:4px 6px;border-radius:6px;font-size:9px}
+.toolbox .btn{padding:5px 8px;font-size:9.5px;margin-top:4px;border-radius:6px}
+.toolbox .rowbtn{font-size:9.5px;padding:3px 0}
+
+@media (max-width: 780px){
+  /* still compact on a phone, and no longer full width */
+  .toolbox{left:10px;right:auto;width:206px;max-height:52vh}
+  .toolbox .tbGrid{grid-template-columns:repeat(5,1fr)}
+  .review{display:none}
+}
