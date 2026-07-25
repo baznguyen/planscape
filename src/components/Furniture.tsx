@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
-import { ROOMS, GEOM, roomHeight, roomCentre, type Room } from '@/lib/model/building';
+import { ROOMS, GEOM, STAIRS, roomHeight, roomCentre, type Room } from '@/lib/model/building';
 import { useStore } from '@/store/useStore';
 
 const y0 = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
@@ -162,22 +162,22 @@ function layout(r: Room): Item[] {
   if (f.includes('bath')) add(<Bathroom/>, r.x0+0.55, r.z0+0.45);
   const cars = f.filter(x => x === 'car').length;
   for (let i = 0; i < cars; i++) add(<Car/>, c.x + (i ? 1.45 : -1.45), c.z, Math.PI/2);
-  if (r.use === 'hall' || r.id === 'g_ent') add(<Planter h={1.3}/>, r.x1-0.45, r.z1-0.45);
   if (f.includes('curtain')) add(<Curtain len={Math.min(1.8,(along?w:d)*0.4)}/>,
     along?c.x:r.x0+0.14, along?r.z0+0.14:c.z, along?0:Math.PI/2);
   return out;
 }
 /** Staircase, balustrades and the alfresco roof — structural fit-out. */
 function Structure({ floor }: { floor: 0 | 1 }) {
-  const rise = GEOM.H0, n = 14, sh = rise/n, run = 3.4, st = run/n;
+  const S0 = STAIRS[0];
+  const rise = GEOM.H0, n = S0.risers, sh = rise/n, run = S0.x1 - S0.x0, st = run/n;
   const base = floor === 0 ? 0 : -GEOM.H0;
   const rails: [number,number,number,number][] = floor === 1
     ? [[6.8,5.2,11.5,5.2],[11.5,5.2,11.5,10.1],[6.8,10.1,11.5,10.1],[6.8,5.2,6.8,10.1],
        [24.2,3.0,25.4,3.0],[25.4,3.0,25.4,6.7],[24.2,6.7,25.4,6.7]] : [];
   return (<group position={[0, y0(floor), 0]}>
     {Array.from({length:n}).map((_,i)=>(
-      <B key={i} w={st} h={sh} d={1.05} c={C.wood}
-         p={[23.85-st*(i+0.5), base+sh*(i+0.5), 4.0+0.525]}/>))}
+      <B key={i} w={st} h={sh} d={S0.width} c={C.wood}
+         p={[S0.x1-st*(i+0.5), base+sh*(i+0.5), (S0.z0+S0.z1)/2]}/>))}
     {rails.map((s,i)=>{ const dx=s[2]-s[0], dz=s[3]-s[1], L=Math.hypot(dx,dz);
       return (<group key={`r${i}`} position={[(s[0]+s[2])/2,0,(s[1]+s[3])/2]} rotation={[0,-Math.atan2(dz,dx),0]}>
         <mesh position={[0,0.5,0]}><boxGeometry args={[L,1.0,0.03]}/>

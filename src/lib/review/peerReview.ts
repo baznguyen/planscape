@@ -11,11 +11,12 @@
  */
 import { ROOMS, WALLS, BEAMS, GEOM, roomArea } from '@/lib/model/building';
 import { PLAN_TRACE, CERTIFIED_AREAS, CERTIFIED_ENVELOPE, type TraceSeg } from '@/lib/model/planTrace';
+import { analyseCirculation, CIRCULATION_RULES } from './circulation';
 
 export type Severity = 'pass' | 'minor' | 'major' | 'critical';
 export interface Finding {
   id: string;
-  discipline: 'geometry' | 'area' | 'structure' | 'envelope';
+  discipline: 'geometry' | 'area' | 'structure' | 'envelope' | 'circulation';
   severity: Severity;
   title: string;
   detail: string;
@@ -194,6 +195,50 @@ export function runPeerReview(): ReviewReport {
         reference: '"BEAM OVER TO ENG DETAILS"',
       });
     }
+  }
+
+  // ---- 6. circulation ------------------------------------------------------------
+  // A model can pass every dimension check and still be unusable. This asks the
+  // question a reviewer asks first: can you actually walk in and reach everything.
+  const circ = analyseCirculation();
+  const entryName = ROOMS.find(r => r.id === circ.entry)?.name ?? circ.entry;
+  if (circ.unreachable.length === 0) {
+    findings.push({
+      id: 'c_reach', discipline: 'circulation', severity: 'pass',
+      title: 'Every room is reachable from the front door',
+      detail: `All ${circ.reachable.size} spaces connect back to ${entryName} through doors, open boundaries or the stair.`,
+      reference: 'NCC Volume Two — access and egress',
+    });
+  } else {
+    for (const r of circ.unreachable) {
+      findings.push({
+        id: `c_unreach_${r.id}`, discipline: 'circulation', severity: 'critical',
+        title: `${r.name} cannot be reached from the front door`,
+        detail: `No door, open boundary or stair connects ${r.name} back to ${entryName}. Either an opening is missing or a wall is closing the route.`,
+        reference: 'NCC Volume Two — access and egress',
+      });
+    }
+  }
+  for (const p of circ.pinchPoints) {
+    findings.push({
+      id: `c_pinch_${p.room.id}`, discipline: 'circulation',
+      severity: p.clear < p.required * 0.7 ? 'critical' : 'major',
+      title: `${p.room.name} is too narrow to walk through`,
+      detail: `${p.cause}, leaving ${(p.clear * 1000).toFixed(0)} mm clear. A corridor needs ${(p.required * 1000).toFixed(0)} mm to be usable.`,
+      reference: `AS 1428.1 — circulation, ${(CIRCULATION_RULES.corridorWidth * 1000).toFixed(0)} mm corridor`,
+      modelValue: `${(p.clear * 1000).toFixed(0)} mm`,
+      planValue: `${(p.required * 1000).toFixed(0)} mm min`,
+    });
+  }
+  for (const d of circ.narrowDoors) {
+    findings.push({
+      id: `c_door_${d.openingId}`, discipline: 'circulation', severity: 'minor',
+      title: `Door to ${d.room} is under the clear-width minimum`,
+      detail: `${(d.width * 1000).toFixed(0)} mm clear where ${(d.required * 1000).toFixed(0)} mm is required to a habitable room.`,
+      reference: 'AS 1428.1 — 820 mm clear door opening',
+      modelValue: `${(d.width * 1000).toFixed(0)} mm`,
+      planValue: `${(d.required * 1000).toFixed(0)} mm min`,
+    });
   }
 
   const weight: Record<Severity, number> = { pass: 0, minor: 1, major: 4, critical: 9 };

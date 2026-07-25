@@ -82,11 +82,11 @@ export const ROOMS: Room[] = [
   R('g_ldy','Laundry',0,17.85,19.94,9.0,10.9,'laundry','ceramicTile',['robe','bath']),
   // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
   R('g_gar','Double Garage',0,19.94,25.93,5.3,10.78,'garage','slabOnGround',['car','car'],0,{tour:true}),
-  R('g_gst','Guest Bedroom',0,17.9,21.4,0.1,3.6,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('g_en2','Ensuite 2',0,21.4,23.0,0.1,1.95,'bath','ceramicTile',['bath']),
-  R('g_bd5','Bedroom 5',0,23.0,25.9,0.1,3.8,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('g_hal','Hall',0,17.85,23.9,3.8,5.3,'hall','timberFloor',[]),
-  R('g_ent','Entry Foyer',0,23.9,25.93,3.9,5.3,'hall','ceramicTile',[],0,{tour:true}),
+  R('g_gst','Guest Bedroom',0,17.9,21.4,0.22,2.92,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('g_en2','Ensuite 2',0,21.4,23.0,0.22,1.95,'bath','ceramicTile',['bath']),
+  R('g_bd5','Bedroom 5',0,23.0,25.9,0.22,2.92,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('g_hal','Hall',0,17.85,23.9,2.92,5.3,'hall','timberFloor',[]),
+  R('g_ent','Entry Foyer',0,23.9,25.93,2.92,5.3,'hall','ceramicTile',[],0,{tour:true}),
   R('g_por','Porch',0,25.93,28.03,3.5,6.5,'outdoor','ceramicTile',[],0,{outdoor:true}),
   // ---- first ----
   R('f_sit','Sitting Room',1,6.8,11.5,0.9,5.0,'living','carpet',['sofa','rug','tv','curtain'],2,{tour:true}),
@@ -120,17 +120,17 @@ export const WALLS: Wall[] = [
   // span makes Living/Family-Dining/Kitchen/Meals a single open-plan volume.
   W('gi_5',0,16.0,0.1,16.0,2.8,'studWall',false,'E'),
   W('gi_6',0,16.0,2.8,17.7,2.8,'studWall',false,'N'),
-  W('gi_7',0,17.78,0,17.78,3.6,'studWall',false,'E'),
+  W('gi_7',0,17.78,0,17.78,2.92,'studWall',false,'E'),
   W('gi_8',0,17.78,5.6,17.78,11,'studWallAcoustic',false,'E'),
-  W('gi_9',0,17.85,3.7,25.93,3.7,'studWall',false,'N'),
+  W('gi_9',0,17.85,2.92,25.93,2.92,'studWall',false,'N'),
   W('gi_10',0,19.94,5.3,19.94,11,'studWallAcoustic',false,'E'),
   W('gi_11',0,17.85,7.9,19.94,7.9,'studWall',false,'N'),
   W('gi_18',0,17.85,9.0,19.94,9.0,'studWall',false,'N'),
   W('gi_12',0,19.94,5.3,25.93,5.3,'studWallAcoustic',false,'N'),
-  W('gi_13',0,21.4,0.1,21.4,3.6,'studWall',false,'E'),
-  W('gi_14',0,23.0,0.1,23.0,3.8,'studWall',false,'E'),
+  W('gi_13',0,21.4,0.22,21.4,2.92,'studWall',false,'E'),
+  W('gi_14',0,23.0,0.22,23.0,2.92,'studWall',false,'E'),
   W('gi_15',0,21.4,1.95,23.0,1.95,'studWall',false,'N'),
-  W('gi_16',0,23.9,3.9,23.9,5.3,'studWall',false,'E'),
+  W('gi_16',0,23.9,3.0,23.9,5.3,'studWall',false,'E'),
   // first external shell
   W('fw_s',1,6.6,0.72,25.4,0.72,'renderClad',true,'S'),
   W('fw_n',1,6.6,10.28,25.4,10.28,'renderClad',true,'N'),
@@ -157,6 +157,19 @@ export const WALLS: Wall[] = [
   W('fi_17',1,18.4,5.1,18.4,6.7,'studWall',false,'E'),
 ];
 
+export interface Stair {
+  id: string; fromFloor: 0 | 1;
+  x0: number; x1: number; z0: number; z1: number;
+  width: number; risers: number;
+  /** the two spaces it joins */
+  connects: [string, string];
+}
+/** Straight flight against the north side of the hall, under the first floor landing. */
+export const STAIRS: Stair[] = [
+  { id:'st_1', fromFloor:0, x0:20.45, x1:23.85, z0:4.20, z1:5.25, width:1.05, risers:14,
+    connects:['g_hal','f_lnd'] },
+];
+
 /** Downstand beams the plan marks "BEAM OVER TO ENG DETAILS". Rendered as soffits. */
 export const BEAMS: Beam[] = [
   { id:'b_open_ns', floor:0, x1:6.7,  z1:5.6, x2:17.7, z2:5.6,  drop:0.34, label:'Beam over — open plan' },
@@ -175,9 +188,9 @@ export const OPENINGS: Opening[] = [
   O('d_entry',0,'gw_e1',28.03,5.0,1.1,2.34,0,'door','doorSolid',0.9,'g_ent',null,'E'),
   O('d_alf',0,'gw_w',6.6,5.35,3.6,2.15,0,'slider','glazingSingle',0.5,'g_mea',null,'W'),
   O('d_gar',0,'gw_e2',28.03,8.6,4.81,2.143,0,'garage','garageDoor',0.9,'g_gar',null,'E'),
-  O('d_g1',0,'gi_9',19.62,3.7,0.9,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
-  O('d_g2',0,'gi_9',24.6,3.7,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
-  O('d_g3',0,'gi_13',21.4,1.05,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
+  O('d_g1',0,'gi_9',19.62,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
+  O('d_g2',0,'gi_9',24.6,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
+  O('d_g3',0,'gi_13',21.4,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
   O('d_g4',0,'gi_11',18.6,7.9,0.8,2.34,0,'door','doorSolid',0.9,'g_pdr','g_wil','N'),
   O('d_g4b',0,'gi_18',18.6,9.0,0.8,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
   O('d_g5',0,'gi_10',19.94,6.6,0.85,2.34,0,'door','doorSolid',0.9,'g_gar','g_pdr','E'),
