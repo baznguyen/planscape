@@ -13,6 +13,8 @@ import { splField } from '@/lib/solvers/acoustics';
 import { roomLoad } from '@/lib/solvers/hvac';
 import { kelvinToRgb, beamPool } from '@/lib/solvers/lighting';
 import { WIND } from '@/lib/solvers/airflow';
+import Furniture from './Furniture';
+import Exterior, { Garden } from './Exterior';
 
 const yOf = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
 /** Temperature -> colour ramp (blue 16C -> green 22 -> yellow 27 -> red 34+). */
@@ -315,6 +317,7 @@ function Rig() {
 }
 export default function Scene() {
   const { view, floor, showRoof } = useStore();
+  const interior = view !== 'street';
   return (
     <Canvas shadows dpr={[1, 2]} camera={{ position: [14, 26, 26], fov: 55, near: 0.05, far: 500 }}
       gl={{ antialias: true }}>
@@ -326,10 +329,11 @@ export default function Scene() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[14, yOf(floor) - 0.06, 5.5]} receiveShadow>
         <planeGeometry args={[160, 160]} /><meshStandardMaterial color="#dfe6d4" />
       </mesh>
-      <Floors /><Walls /><Openings />
+      {interior && <><Floors /><Walls /><Openings /><Furniture /><Garden /></>}
+      <Exterior />
       <ThermalLabels />
       <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><AirOverlay />
-      <OrbitControls target={[14, yOf(floor) + 1, 5.5]} maxPolarAngle={Math.PI / 2.05} />
+      <OrbitControls target={view==='street'?[20,3,5.5]:[14, yOf(floor) + 1, 5.5]} maxPolarAngle={Math.PI / 2.05} />
     </Canvas>
   );
 }
