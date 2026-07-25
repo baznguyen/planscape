@@ -14,6 +14,7 @@ import Toolbox from './Toolbox';
 import ReviewSection from './ReviewPanel';
 import WalkPad from './WalkPad';
 import { AMB_ICONS, OVERLAY_ICON } from './ui/icons';
+import Sheet from './ui/Sheet';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const OVERLAYS: [OverlayKey, string][] = [
@@ -120,24 +121,39 @@ export default function Ui() {
             onClick={() => s.applyAmbience(i)}>{AMB_ICONS[i] ?? I.roof}</button>)}</div>
       </header>
 
-      <button className="railToggle" onClick={() => s.setDrawer('rail')} aria-label="Overlays">
-        {railOpen ? '✕' : '☰'}</button>
-      <aside className={`rail ${railOpen ? 'open' : ''}`}>
-        <div className="cap">Layers</div>
-        {OVERLAYS.map(([k, tip]) =>
-          <button key={k} className={`ib ${s.overlays[k] ? 'on' : ''}`} data-tip={tip}
-            aria-label={tip} aria-pressed={s.overlays[k]}
-            onClick={() => s.toggleOverlay(k)}>{OVERLAY_ICON[k]}</button>)}
-        <div className="cap" style={{ marginTop: 10 }}>Doors</div>
-        <button className="ib" data-tip={`Open everything (${openCount} open)`}
-          aria-label="Open every door and window"
-          onClick={() => s.setAllOpenings(true)}>{OVERLAY_ICON.openAll}</button>
-        <button className="ib" data-tip="Close everything" aria-label="Close every door and window"
-          onClick={() => s.setAllOpenings(false)}>{OVERLAY_ICON.closeAll}</button>
-        <button className={`ib ${s.hvacOn ? 'on' : ''}`} data-tip="Air conditioning on/off"
-          aria-label="Air conditioning" aria-pressed={s.hvacOn}
-          onClick={() => s.setHvac(!s.hvacOn)}>{OVERLAY_ICON.hvac}</button>
-      </aside>
+      {/* Only one surface at a time: while ANY sheet is open both launchers
+          stand down, so nothing floats over the sheet you are using. */}
+      {s.drawer === null && (
+        <button className="railToggle" onClick={() => s.setDrawer('rail')}
+          aria-label="Layers and openings">☰</button>
+      )}
+      {/* Same sheet as the toolbox. The overlay rail used to be a bare column of
+          icons with a truncated caption; as a sheet it gets a title, a real
+          close button and labelled tiles, and it obeys the same stacking rules
+          as everything else. */}
+      <Sheet open={railOpen} title="Layers & openings" onClose={() => s.setDrawer(null)} className="rail">
+        <div className="sec">Overlays</div>
+        <div className="tileGrid">
+          {OVERLAYS.map(([k, tip]) =>
+            <button key={k} className={`tile ${s.overlays[k] ? 'on' : ''}`}
+              aria-label={tip} aria-pressed={s.overlays[k]}
+              onClick={() => s.toggleOverlay(k)}>
+              <i>{OVERLAY_ICON[k]}</i><span>{tip.split(' — ')[0]}</span>
+            </button>)}
+        </div>
+        <div className="sec">Doors & windows</div>
+        <div className="tileGrid">
+          <button className="tile" aria-label="Open every door and window"
+            onClick={() => s.setAllOpenings(true)}>
+            <i>{OVERLAY_ICON.openAll}</i><span>Open all · {openCount}</span></button>
+          <button className="tile" aria-label="Close every door and window"
+            onClick={() => s.setAllOpenings(false)}>
+            <i>{OVERLAY_ICON.closeAll}</i><span>Close all</span></button>
+          <button className={`tile ${s.hvacOn ? 'on' : ''}`} aria-label="Air conditioning"
+            aria-pressed={s.hvacOn} onClick={() => s.setHvac(!s.hvacOn)}>
+            <i>{OVERLAY_ICON.hvac}</i><span>Air con</span></button>
+        </div>
+      </Sheet>
 
       <div className="statStrip">
         <span><i>Outdoor</i><b>{s.outdoorT.toFixed(1)} °C</b></span>

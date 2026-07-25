@@ -8,6 +8,7 @@ import { DEFAULT_APS, type AP } from '@/lib/solvers/rf';
 import { assetById } from '@/lib/model/assets';
 import { resolveMount } from '@/lib/model/mounting';
 import type { PaintAssignment, PaintScope } from '@/lib/model/paint';
+import { paletteById, roleColour } from '@/lib/model/palettes';
 
 /**
  * Monotonic id source. Anything derived from an array's length is reused as
@@ -67,6 +68,8 @@ interface S {
   placing: { kind: ItemKind; type: string } | null;
   /** why the last placement was refused, so the UI can say so */
   placeError: string | null;
+  /** the preset scheme currently applied, if the paint came from one */
+  palette: string | null;
   /** first-person movement input: forward and strafe, each -1..1 */
   walkInput: { f: number; s: number };
   /** bumped to ask the camera rig to return to the view's default vantage */
@@ -97,6 +100,7 @@ interface S {
   setFinish:(roomId:string,surface:Surface,f:Finish|null)=>void;
   clearFinishes:(roomId?:string)=>void;
   addPaint:(p:Omit<PaintAssignment,'id'>)=>void;
+  applyPalette:(id:string)=>void;
   removePaint:(id:string)=>void;
   clearPaints:(scope?:PaintScope)=>void;
   setWalkInput:(f:number,s:number)=>void; resetView:()=>void; toggleEyeLevel:()=>void;
@@ -139,7 +143,7 @@ export const useStore = create<S>((set, get) => ({
   hvacOn: false, setpointCool: 24, setpointHeat: 20,
   thermal: {}, thermalDetail: {}, outdoorT: 25,
   selectedRoom: null, hoverRoom: null, showRoof: true, fov: 72,
-  items: [], placing: null, placeError: null, finishes: {}, paints: [],
+  items: [], placing: null, placeError: null, finishes: {}, paints: [], palette: null,
   walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false, drawer: null,
 
   // Eye level is a WALK-view stance. Leaving it set while switching to plan or
@@ -264,8 +268,28 @@ export const useStore = create<S>((set, get) => ({
     // A length-derived id is reused the moment anything is removed, and two rows
   // sharing an id means one tap deletes both. Monotonic counter instead.
   addPaint: p => set(s => ({ paints: [...s.paints, { ...p, id: `pa_${nextId()}_${p.scope}_${p.targetId}` }] })),
-  removePaint: id => set(s => ({ paints: s.paints.filter(p => p.id !== id) })),
-  clearPaints: scope => set(s => ({ paints: scope ? s.paints.filter(p => p.scope !== scope) : [] })),
+  /**
+   * A scheme in one tap. It REPLACES the paint rather than layering on top,
+   * because a scheme is a decision about the whole house — leaving the previous
+   * one underneath would mean the most-specific-wins resolver quietly kept bits
+   * of it. The feature colour only lands if a room is selected; otherwise the
+   * scheme is walls, trim and the two facade colours.
+   */
+  applyPalette: id => {
+    const p = paletteById(id);
+    if (!p) return;
+    const room = get().selectedRoom;
+    const add: PaintAssignment[] = [];
+    const push = (a: Omit<PaintAssignment, 'id'>) =>
+      add.push({ ...a, id: `pa_${nextId()}_${a.scope}_${a.targetId}` });
+    const walls = roleColour(p.walls), facade = roleColour(p.facade), feature = roleColour(p.feature);
+    if (walls) push({ scope: 'house', targetId: '', side: 'internal', colour: walls });
+    if (facade) push({ scope: 'facade', targetId: '', side: 'external', colour: facade });
+    if (room && feature) push({ scope: 'room', targetId: room, side: 'internal', colour: feature });
+    set({ paints: add, palette: id });
+  },
+  removePaint: id => set(s => ({ paints: s.paints.filter(p => p.id !== id), palette: null })),
+  clearPaints: scope => set(s => ({ paints: scope ? s.paints.filter(p => p.scope !== scope) : [], palette: null })),
   clearFinishes: roomId => set(s => {
     if (!roomId) return { finishes: {} };
     const n = { ...s.finishes }; delete n[roomId]; return { finishes: n };

@@ -546,3 +546,167 @@ main{position:fixed;inset:0}
    refusal reads as a broken button. */
 .mini.warn{background:rgba(184,90,40,.14);border:1px solid rgba(184,90,40,.45);
  color:#8a3d12;border-radius:6px;padding:4px 6px;cursor:pointer;margin:2px 0}
+
+
+/* ============================================================
+   THE SHEET — one popup shape for the whole app
+   A frosted card with a round close button on the left and a
+   centred title. Bottom sheet on a phone, floating card on a
+   desktop. Everything that used to position itself now inherits
+   these rules, which is why nothing can land on anything else.
+============================================================ */
+.sheet{
+  position:absolute; z-index:16; display:none; flex-direction:column;
+  background:rgba(252,252,251,.72);
+  backdrop-filter:blur(26px) saturate(1.7); -webkit-backdrop-filter:blur(26px) saturate(1.7);
+  border:1px solid rgba(20,28,40,.10);
+  box-shadow:0 18px 48px rgba(16,22,32,.16), 0 2px 8px rgba(16,22,32,.06);
+  border-radius:20px; overflow:hidden;
+}
+.sheet.open{display:flex}
+
+.sheetHead{
+  flex:none; display:flex; align-items:center; gap:8px; padding:9px 10px 8px;
+  border-bottom:1px solid rgba(20,28,40,.07);
+}
+.sheetX{
+  flex:none; width:34px; height:34px; border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.9);
+  color:var(--ink); transition:.15s;
+}
+.sheetX:hover{background:#fff; transform:scale(1.04)}
+.sheetX:active{transform:scale(.96)}
+.sheetHead h2{
+  flex:1; margin:0; text-align:center; font-size:14px; font-weight:650;
+  letter-spacing:-.1px; color:var(--ink);
+}
+.sheetPad{flex:none; width:34px}
+.sheetBody{flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch}
+.sheetBody::-webkit-scrollbar{width:7px}
+.sheetBody::-webkit-scrollbar-thumb{background:var(--ln2); border-radius:8px}
+
+/* pill tabs, the row under the title */
+.sheet .tbTabs{display:flex; gap:5px; padding:9px 11px 3px; flex-wrap:wrap}
+.sheet .tbTabs button{
+  flex:1 1 0; min-width:0; cursor:pointer; font:inherit; font-size:11.5px; font-weight:600;
+  padding:7px 6px; border-radius:9px; color:var(--ink2);
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.72); transition:.14s;
+}
+.sheet .tbTabs button.on{background:var(--ink); border-color:var(--ink); color:#fff}
+.sheet .tbTabs.sm button{font-size:10.5px; padding:5px 5px; border-radius:8px}
+
+/* section captions */
+.sheet .sec{
+  margin:12px 11px 5px; font-size:9.5px; font-weight:700; letter-spacing:.8px;
+  text-transform:uppercase; color:var(--ink3);
+}
+.sheet .tbBody{padding:0 0 12px}
+.sheet .mini{margin:0 11px; font-size:10.5px; line-height:1.45}
+.sheet .btn{margin:5px 11px 0; width:calc(100% - 22px); padding:8px 10px;
+  border-radius:10px; font-size:11px; font-weight:600;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.8); cursor:pointer}
+.sheet .btn:hover{background:#fff}
+.sheet .rowbtn{padding:5px 11px; font-size:11px}
+.sheet .cust{padding:0 11px}
+.sheet .txt.find{width:calc(100% - 22px); margin:2px 11px 5px}
+
+/* icon tiles — the square grid in the screenshot */
+.sheet .tbGrid{display:grid; gap:6px; padding:0 11px;
+  grid-template-columns:repeat(5,minmax(0,1fr))}
+.sheet .tbGrid.wide{grid-template-columns:repeat(5,minmax(0,1fr))}
+.sheet .tbItem{
+  aspect-ratio:1; border-radius:12px; cursor:pointer;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.78);
+  display:flex; align-items:center; justify-content:center; transition:.14s;
+}
+.sheet .tbItem:hover{background:#fff; border-color:var(--ac)}
+.sheet .tbItem.on{background:var(--ink); border-color:var(--ink)}
+.sheet .tbItem.on i{color:#fff}
+.sheet .swatch{border-radius:10px; border:1px solid rgba(20,28,40,.14)}
+
+/* labelled tiles for the layers sheet */
+.tileGrid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:0 11px}
+.tile{
+  cursor:pointer; border-radius:12px; padding:9px 4px 7px; font:inherit;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.78);
+  display:flex; flex-direction:column; align-items:center; gap:5px; transition:.14s; color:var(--ink);
+}
+.tile i{display:flex; align-items:center; justify-content:center}
+.tile span{font-size:9px; font-weight:600; line-height:1.15; text-align:center; color:var(--ink2)}
+.tile:hover{background:#fff; border-color:var(--ac)}
+.tile.on{background:var(--ac); border-color:var(--ac); color:#fff}
+.tile.on span{color:#fff}
+
+/* scheme cards */
+.scheme{
+  display:block; width:calc(100% - 22px); margin:0 11px 6px; padding:9px 10px;
+  text-align:left; cursor:pointer; font:inherit; border-radius:12px;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.78); transition:.14s;
+}
+.scheme:hover{background:#fff; border-color:var(--ac)}
+.scheme.on{border-color:var(--ac); box-shadow:inset 0 0 0 1px var(--ac)}
+.schemeTop{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.schemeTop b{font-size:11.5px; font-weight:650; color:var(--ink)}
+.schemeTop em{font-style:normal; font-size:9px; font-weight:600; color:var(--ink3)}
+.schemeBar{display:flex; gap:3px; margin:6px 0 5px}
+.schemeBar i{flex:1; height:16px; border-radius:4px; border:1px solid rgba(20,28,40,.12)}
+.schemeNote{display:block; font-size:9.5px; line-height:1.4; color:var(--ink3)}
+
+/* ---- desktop: floating cards in their own lanes ---- */
+.sheet.toolbox{left:12px; bottom:74px; width:306px; max-height:min(74vh,660px)}
+.sheet.rail{left:12px; top:104px; width:306px; max-height:min(58vh,520px)}
+
+/* ---- phone: bottom sheets, full width, thumb-reachable ---- */
+@media (max-width: 780px){
+  .sheet{left:0; right:0; bottom:0; top:auto; width:auto;
+    border-radius:20px 20px 0 0; border-bottom:0;
+    max-height:76vh; padding-bottom:env(safe-area-inset-bottom)}
+  .sheet.toolbox, .sheet.rail{left:0; right:0; top:auto; bottom:0; width:auto;
+    max-height:76vh}
+  .sheetHead{padding:11px 12px 10px}
+  .sheetHead h2{font-size:15px}
+  .sheetX{width:38px; height:38px}
+  .sheet .tbGrid{grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px}
+  .sheet .tbItem{border-radius:13px}
+  .tileGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  /* a sheet owns the bottom of the screen while it is open */
+  .sheet.open ~ .walkPad{opacity:0; pointer-events:none}
+  .sheet.open ~ .statStrip, .sheet.open ~ .sun{opacity:0; pointer-events:none}
+}
+
+/* the old positioning rules are superseded by the sheet */
+.toolbox:not(.sheet), .review{display:none}
+.rail:not(.sheet){display:none}
+
+
+/* ---- launchers ----------------------------------------------------
+   The rail used to be a permanent column on a desktop, so its toggle
+   was hidden there. Now that Layers is a sheet like everything else,
+   the toggle is the ONLY way to open it and has to exist at every
+   size. Both launchers share one lane in the bottom-left corner,
+   which is the corner a thumb reaches on a phone and the corner the
+   model is least likely to be doing anything interesting in.
+-------------------------------------------------------------------- */
+.railToggle{display:flex; align-items:center; justify-content:center;
+  position:absolute; z-index:17; left:12px; bottom:126px; top:auto;
+  width:42px; height:42px; border-radius:14px; font-size:16px;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.78);
+  color:var(--ink); cursor:pointer; box-shadow:var(--sh)}
+.toolTab{position:absolute; z-index:17; left:12px; bottom:74px; top:auto; right:auto;
+  width:42px; height:42px; border-radius:14px; font-size:19px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid rgba(20,28,40,.10); background:rgba(255,255,255,.78);
+  color:var(--ink); cursor:pointer; box-shadow:var(--sh)}
+.railToggle:hover,.toolTab:hover{background:#fff; transform:translateY(-1px)}
+
+@media (max-width: 780px){
+  .railToggle{left:12px; bottom:128px; top:auto; width:44px; height:44px}
+  .toolTab{left:12px; bottom:76px; top:auto; width:44px; height:44px}
+}
+
+/* A CSS tooltip inside a clipped sheet is a tooltip you cannot read — the
+   sections and labels carry the meaning now, and the native title attribute
+   carries the detail without being cropped by overflow:hidden. */
+.sheet [data-tip]::after{display:none}

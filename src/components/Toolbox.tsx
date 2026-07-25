@@ -8,6 +8,7 @@ import ReviewSection from './ReviewPanel';
 
 import { ASSETS, assetsIn } from '@/lib/model/assets';
 import { ASSET_ICON } from './ui/icons';
+import Sheet from './ui/Sheet';
 
 const GROUPS: { group: string; category: Parameters<typeof assetsIn>[0] }[] = [
   { group: 'Audio', category: 'audio' },
@@ -15,6 +16,9 @@ const GROUPS: { group: string; category: Parameters<typeof assetsIn>[0] }[] = [
   { group: 'Climate', category: 'climate' },
   { group: 'Network', category: 'network' },
 ];
+const TAB_TITLE: Record<'place' | 'finish' | 'paint' | 'check', string> = {
+  place: 'Add to the model', finish: 'Finishes', paint: 'Paint & colour', check: 'Drawing review',
+};
 const KIND: Record<string, ItemKind> = {
   audio: 'speaker', lighting: 'light', network: 'ap', climate: 'heater', furniture: 'furniture',
 };
@@ -52,10 +56,15 @@ export default function Toolbox() {
 
   return (
     <>
-      <button className={`toolTab ${open ? 'on' : ''}`} onClick={() => s.setDrawer('tools')}
-        data-tip="Add & finish">{open ? '✕' : '✚'}</button>
+      {/* The sheet has its own close button now, so the launcher only exists
+          while the sheet is shut. Two close buttons on one surface is the kind
+          of thing that made the old layout feel like three apps at once. */}
+      {s.drawer === null && (
+        <button className="toolTab" onClick={() => s.setDrawer('tools')}
+          data-tip="Add & finish" aria-label="Open the tools">✚</button>
+      )}
 
-      <section className={`toolbox ${open ? 'open' : ''}`}>
+      <Sheet open={open} title={TAB_TITLE[tab]} onClose={() => s.setDrawer(null)} className="toolbox">
         {/* one drawer holds everything, so nothing can stack on anything else */}
         <div className="tbTabs wrap">
           <button className={tab === 'place' ? 'on' : ''} onClick={() => setTab('place')}>Add</button>
@@ -80,7 +89,8 @@ export default function Toolbox() {
                   {assetsIn(g.category).map(a => (
                     <button key={a.id}
                       className={`tbItem ${s.placing?.type === a.id ? 'on' : ''}`}
-                      data-tip={`${a.label} · ${a.mount.replace('-', ' ')}`}
+                      title={`${a.label} · ${a.mount.replace('-', ' ')}`}
+                      aria-label={`${a.label}, mounts to ${a.mount.replace('-', ' ')}`}
                       onClick={() => {
                         const arm = s.placing?.type === a.id ? null : { kind: KIND[a.category], type: a.id };
                         s.setPlacing(arm);
@@ -150,7 +160,8 @@ export default function Toolbox() {
                     if (!mat) return null;
                     const on = s.finishes[room.id]?.[surface]?.material === m;
                     return (
-                      <button key={m} className={`swatch ${on ? 'on' : ''}`} data-tip={mat.label}
+                      <button key={m} className={`swatch ${on ? 'on' : ''}`} title={mat.label}
+                        aria-label={mat.label}
                         style={{ background: mat.colour }}
                         onClick={() => s.setFinish(room.id, surface,
                           { name: mat.label, material: m, colour: mat.colour })} />
@@ -170,7 +181,7 @@ export default function Toolbox() {
               </>}
           </div>
         )}
-      </section>
+      </Sheet>
     </>
   );
 }

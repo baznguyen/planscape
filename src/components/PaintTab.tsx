@@ -6,6 +6,7 @@ import {
   systemsForRegion, searchColours, customColour, normaliseHex, lrvFromHex, type Colour,
 } from '@/lib/model/colours';
 import { SCOPE_ORDER, scopeArea, paintQuantity, roomsOnWall, type PaintScope } from '@/lib/model/paint';
+import { PALETTES, paletteColours, paletteWallLrv } from '@/lib/model/palettes';
 
 const SCOPE_LABEL: Record<PaintScope, string> = {
   wall: 'Wall', room: 'Room', floorLevel: 'Level', facade: 'Facade', house: 'House',
@@ -86,6 +87,32 @@ export default function PaintTab() {
 
   return (
     <div className="tbBody">
+      {/* Schemes first, because that is the order the decision is made in: you
+          choose a scheme, then you adjust one wall. A catalogue of 2,000
+          swatches is where you go when the presets are not right. */}
+      <div className="sec">Schemes</div>
+      <div className="mini hint">One tap sets walls, facade and — if a room is
+        selected — that room as the feature.</div>
+      {PALETTES.map(pal => {
+        const cs = paletteColours(pal);
+        return (
+          <button key={pal.id} className={`scheme ${s.palette === pal.id ? 'on' : ''}`}
+            onClick={() => s.applyPalette(pal.id)} title={pal.note}>
+            <span className="schemeTop">
+              <b>{pal.name}</b>
+              <em>walls LRV {paletteWallLrv(pal)}</em>
+            </span>
+            <span className="schemeBar">
+              {cs.map(c => (
+                <i key={c.role} style={{ background: c.colour?.hex ?? '#888' }}
+                  title={`${c.role} · ${c.colour?.name ?? '—'} · LRV ${c.colour?.lrv ?? '—'}`} />
+              ))}
+            </span>
+            <span className="schemeNote">{pal.note}</span>
+          </button>
+        );
+      })}
+
       <div className="sec">Apply to</div>
       <div className="tbTabs sm wrap">
         {SCOPE_ORDER.map(sc => (
@@ -149,7 +176,8 @@ export default function PaintTab() {
       <div className="tbGrid wide">
         {page.map(c => (
           <button key={c.code} className={`swatch tall ${c.approx ? 'aprx' : ''}`} style={{ background: c.hex }}
-            data-tip={`${c.name} · ${c.code} · LRV ${c.lrv}${c.approx ? ' (indicative)' : ''}`}
+            title={`${c.name} · ${c.code} · LRV ${c.lrv}${c.approx ? ' (indicative)' : ''}`}
+            aria-label={`${c.name}, ${c.code}, LRV ${c.lrv}`}
             onClick={() => apply(c)} disabled={!ready}>
             <em style={{ color: c.lrv > 45 ? '#22262b' : '#f4f4f2' }}>{c.lrv}</em>
           </button>
