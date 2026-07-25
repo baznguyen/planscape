@@ -5,19 +5,28 @@ import { autoDesign, type Light, AMBIENCE, warmDim } from '@/lib/solvers/lightin
 import { settle, stepThermal, type ThermalState, type ThermalCtx, type RoomThermalBreakdown } from '@/lib/solvers/thermal';
 import { WIND } from '@/lib/solvers/airflow';
 import { DEFAULT_APS, type AP } from '@/lib/solvers/rf';
+import { assetById } from '@/lib/model/assets';
+import { resolveMount } from '@/lib/model/mounting';
 
 export type OverlayKey = 'dims'|'thermal'|'light'|'audio'|'air'|'hvac'|'wifi'|'elec'|'plan';
 export type ViewMode = 'walk' | 'plan' | 'street';
 
-export interface Speaker { id:string; type:string; floor:0|1; room:string; x:number; z:number; y:number; db:number }
+export interface Speaker { id:string; type:string; floor:0|1; room:string; x:number; z:number; y:number; db:number;
+  /** catalogue id and coupled surface count, for the SPL solver */
+  asset?:string; boundaries?:number }
 
 /** Anything the user drops into the model by hand. */
 export type ItemKind = 'furniture' | 'heater' | 'vent' | 'speaker' | 'ap' | 'light';
 export interface PlacedItem {
   id: string; kind: ItemKind; type: string;
+  /** id in the asset catalogue — carries the engineering metadata */
+  asset: string;
   floor: 0|1; room: string;
   x: number; z: number; y: number; rot: number;
-  /** kW for a heater, W for a fan, dB for a speaker … */
+  /** how many surfaces it is coupled to; drives subwoofer boundary gain */
+  boundaries: number;
+  wallId?: string;
+  /** kW for a heater */
   power: number;
   on: boolean;
 }
@@ -87,9 +96,17 @@ const ctxOf = (s: Partial<S>): ThermalCtx => ({
   lightingW: (() => {
     const w: Record<string, number> = {};
     for (const l of s.lights ?? []) if (l.on) w[l.room] = (w[l.room] ?? 0) + 10 * l.bulbs * l.dim;
-    // a placed heater is a sensible gain in the room it sits in (kW -> W)
-    for (const it of s.items ?? [])
-      if (it.kind === 'heater' && it.on) w[it.room] = (w[it.room] ?? 0) + it.power * 1000;
+    // A placed heater is a sensible gain in the room it sits in (kW -> W), but a
+    // real heater has a thermostat: once the room is at the heating setpoint it
+    // cuts out. Without this the room runs away to 50 C, which is a model
+    // artefact, not a design outcome.
+    for (const it of s.items ?? []) {
+      if (it.kind !== 'heater' || !it.on) continue;
+      const T = (s.thermal ?? {})[it.room];
+      const set = s.setpointHeat ?? 20;
+      if (T !== undefined && T > set + 0.5) continue;      // thermostat satisfied
+      w[it.room] = (w[it.room] ?? 0) + it.power * 1000;
+    }
     return w;
   })(),
   hvacOn: s.hvacOn!, setpointCool: s.setpointCool!, setpointHeat: s.setpointHeat!,
@@ -158,29 +175,33 @@ export const useStore = create<S>((set, get) => ({
   placeAt: (floor, x, z, room) => {
     const p = get().placing;
     if (!p) return;
-    const id = `${p.kind}_${Math.round(x * 100)}_${Math.round(z * 100)}_${get().items.length}`;
-    if (p.kind === 'light') {
-      const H = floor === 0 ? 2.72 : 2.59;
-      get().addLight({ id, type: p.type as any, floor, room, x, z, y: H - 0.02,
-        on: true, kelvin: 3000, rgb: null, dim: 1,
-        bulbs: p.type === 'pendant' ? 3 : p.type === 'floor' ? 2 : 1 });
-    } else if (p.kind === 'speaker') {
-      set(s => ({ speakers: [...s.speakers, {
-        id, type: p.type, floor, room, x, z,
-        y: p.type === 'subwoofer' ? 0.25 : 1.2,
-        db: p.type === 'subwoofer' ? 95 : 88 }] }));
-    } else if (p.kind === 'ap') {
-      set(s => ({ aps: [...s.aps, {
-        id, name: `AP ${s.aps.length + 1} — ${p.type}`, floor, x, z, band: get().rfBand }] }));
+    const spec = assetById(p.type);
+    if (!spec) return;
+    // resolve the mount before anything else: a wall speaker snaps to the wall,
+    // a downlight goes into the ceiling above the tap, a sub stays on the floor
+    const m = resolveMount(spec, floor, x, z);
+    const id = `${spec.id}_${Math.round(m.x * 100)}_${Math.round(m.z * 100)}_${Date.now() % 100000}`;
+    const where = m.room ?? room;
+    if (spec.category === 'lighting') {
+      get().addLight({ id, type: spec.id as any, floor, room: where, x: m.x, z: m.z, y: m.y,
+        on: true, kelvin: spec.light?.cctOptions[0] ?? 3000, rgb: null, dim: 1,
+        bulbs: spec.id === 'pendant' ? 3 : 1, asset: spec.id });
+    } else if (spec.category === 'audio') {
+      set(s2 => ({ speakers: [...s2.speakers, {
+        id, type: spec.id, floor, room: where, x: m.x, z: m.z, y: m.y,
+        db: spec.audio?.maxSplDb ?? 90, asset: spec.id, boundaries: m.boundaries }] }));
+    } else if (spec.category === 'network') {
+      set(s2 => ({ aps: [...s2.aps, {
+        id, name: spec.label, floor, x: m.x, z: m.z, band: get().rfBand, asset: spec.id }] }));
     } else {
-      const power = p.kind === 'heater' ? 2.4 : p.kind === 'vent' ? 0 : 0;
-      set(s => ({ items: [...s.items, {
-        id, kind: p.kind, type: p.type, floor, room, x, z,
-        y: p.kind === 'vent' ? (floor === 0 ? 2.6 : 2.45) : 0, rot: 0, power, on: true }] }));
+      set(s2 => ({ items: [...s2.items, {
+        id, kind: p.kind, type: spec.id, asset: spec.id, floor, room: where,
+        x: m.x, z: m.z, y: m.y - (floor === 0 ? 0 : 3.05), rot: m.rot,
+        boundaries: m.boundaries, wallId: m.wallId,
+        power: spec.thermal?.outputKw ?? 0, on: true }] }));
     }
-    // one click, one item — re-arm deliberately rather than dropping a trail
     set({ placing: null });
-    if (p.kind === 'heater' || p.kind === 'vent') get().resettleThermal();
+    if (spec.thermal) get().resettleThermal();
   },
   updateItem: (id, p) => { set(s => ({ items: s.items.map(i => i.id === id ? { ...i, ...p } : i) }));
     get().resettleThermal(); },

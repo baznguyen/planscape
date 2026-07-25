@@ -1,6 +1,8 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { runPeerReview, type Severity } from '@/lib/review/peerReview';
+import { useStore } from '@/store/useStore';
+import type { RfBandKey } from '@/lib/model/assets';
 
 const TONE: Record<Severity, string> = {
   critical: 'bd', major: 'bd', minor: 'wn', pass: 'ok',
@@ -19,7 +21,11 @@ const WORD: Record<Severity, string> = {
 export default function ReviewSection() {
   const [openList, setOpenList] = useState(false);
   const [showPassed, setShowPassed] = useState(false);
-  const report = useMemo(() => runPeerReview(), []);
+  const { items, speakers, lights, aps, rfBand } = useStore();
+  // re-runs whenever an asset is placed, so the review reflects what is in the model
+  const report = useMemo(
+    () => runPeerReview({ items, speakers, lights, aps, rfBand: rfBand as RfBandKey }),
+    [items, speakers, lights, aps, rfBand]);
   const shown = report.findings.filter(f => showPassed || f.severity !== 'pass');
   const tone = report.score >= 9.5 ? 'ok' : report.score >= 8 ? 'wn' : 'bd';
 

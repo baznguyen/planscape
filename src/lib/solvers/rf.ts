@@ -9,7 +9,7 @@ export const RSSI_BANDS: [number, string, string][] = [
   [-50, 'Excellent', '#2f8f5f'], [-60, 'Good', '#6fb04a'],
   [-67, 'Usable', '#d2a520'], [-75, 'Marginal', '#d97a2b'], [-999, 'Unusable', '#c4564a'],
 ];
-export interface AP { id: string; name: string; floor: 0 | 1; x: number; z: number; band: RfBand }
+export interface AP { id: string; name: string; floor: 0 | 1; x: number; z: number; band: RfBand; asset?: string }
 export const DEFAULT_APS: AP[] = [
   { id: 'ap1', name: 'AP 1 — Ground rear', floor: 0, x: 9.5, z: 5.5, band: '5' },
   { id: 'ap2', name: 'AP 2 — Ground front', floor: 0, x: 21.5, z: 5.1, band: '5' },

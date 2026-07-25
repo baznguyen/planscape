@@ -13,11 +13,12 @@ import { ROOMS, WALLS, BEAMS, GEOM, roomArea } from '@/lib/model/building';
 import { PLAN_TRACE, CERTIFIED_AREAS, CERTIFIED_ENVELOPE, type TraceSeg } from '@/lib/model/planTrace';
 import { analyseCirculation, CIRCULATION_RULES } from './circulation';
 import { runDraftingRules } from './draftingRules';
+import { runAssetRules, type AssetScene } from './assetRules';
 
 export type Severity = 'pass' | 'minor' | 'major' | 'critical';
 export interface Finding {
   id: string;
-  discipline: 'geometry' | 'area' | 'structure' | 'envelope' | 'circulation' | 'habitability';
+  discipline: 'geometry' | 'area' | 'structure' | 'envelope' | 'circulation' | 'habitability' | 'assets';
   severity: Severity;
   title: string;
   detail: string;
@@ -81,7 +82,7 @@ function areaFinding(
   };
 }
 
-export function runPeerReview(): ReviewReport {
+export function runPeerReview(scene?: AssetScene): ReviewReport {
   const findings: Finding[] = [];
   const sum = (pred: (r: (typeof ROOMS)[number]) => boolean) =>
     ROOMS.filter(pred).reduce((a, r) => a + roomArea(r), 0);
@@ -261,10 +262,12 @@ export function runPeerReview(): ReviewReport {
   // ---- 7. drafting logic ----------------------------------------------------------
   // Generalised rules, not tied to this plan. Each one is a judgement a
   // draftsperson makes automatically, written down so it applies to every job.
-  for (const r of runDraftingRules()) {
+  const ruleFindings = [...runDraftingRules(), ...(scene ? runAssetRules(scene) : [])];
+  for (const r of ruleFindings) {
     const disc: Finding['discipline'] =
       r.rule.startsWith('habitability') ? 'habitability'
-      : r.rule.startsWith('structure') ? 'structure' : 'geometry';
+      : r.rule.startsWith('structure') ? 'structure'
+      : r.rule.startsWith('assets') ? 'assets' : 'geometry';
     findings.push({
       id: `d_${r.rule}_${r.subject ?? ''}`,
       discipline: disc, severity: r.severity,

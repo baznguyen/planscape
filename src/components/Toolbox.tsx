@@ -4,35 +4,17 @@ import { useStore, type ItemKind, type Surface } from '@/store/useStore';
 import { ROOMS, roomById } from '@/lib/model/building';
 import { MATERIALS } from '@/lib/model/materials';
 
-interface Tool { kind: ItemKind; type: string; icon: string; label: string }
+import { ASSETS, assetsIn } from '@/lib/model/assets';
 
-const CATALOGUE: { group: string; tools: Tool[] }[] = [
-  { group: 'Furniture', tools: [
-    { kind:'furniture', type:'sofa',   icon:'🛋', label:'Sofa' },
-    { kind:'furniture', type:'bed',    icon:'🛏', label:'Bed' },
-    { kind:'furniture', type:'dining', icon:'🍽', label:'Dining table' },
-    { kind:'furniture', type:'desk',   icon:'🗄', label:'Desk' },
-    { kind:'furniture', type:'island', icon:'🧱', label:'Island bench' },
-    { kind:'furniture', type:'robe',   icon:'🚪', label:'Robe' },
-  ]},
-  { group: 'Lighting', tools: [
-    { kind:'light', type:'downlight', icon:'💡', label:'Downlight' },
-    { kind:'light', type:'pendant',   icon:'🔆', label:'Pendant' },
-    { kind:'light', type:'floor',     icon:'🕯', label:'Floor lamp' },
-    { kind:'light', type:'table',     icon:'🪔', label:'Table lamp' },
-  ]},
-  { group: 'Climate', tools: [
-    { kind:'heater', type:'panel heater', icon:'🔥', label:'Heater 2.4 kW' },
-    { kind:'vent',   type:'ceiling vent', icon:'🌬', label:'A/C vent' },
-  ]},
-  { group: 'Audio', tools: [
-    { kind:'speaker', type:'satellite', icon:'🔊', label:'Satellite' },
-    { kind:'speaker', type:'subwoofer', icon:'📢', label:'Subwoofer' },
-  ]},
-  { group: 'Network', tools: [
-    { kind:'ap', type:'ceiling AP', icon:'📶', label:'WiFi access point' },
-  ]},
+const GROUPS: { group: string; category: Parameters<typeof assetsIn>[0] }[] = [
+  { group: 'Audio', category: 'audio' },
+  { group: 'Lighting', category: 'lighting' },
+  { group: 'Climate', category: 'climate' },
+  { group: 'Network', category: 'network' },
 ];
+const KIND: Record<string, ItemKind> = {
+  audio: 'speaker', lighting: 'light', network: 'ap', climate: 'heater', furniture: 'furniture',
+};
 
 /** Catalogue finishes offered per surface, drawn from the material database. */
 const FINISH_CHOICES: Record<Surface, string[]> = {
@@ -78,17 +60,17 @@ export default function Toolbox() {
               ? <div className="mini armed"><b>{s.placing.type}</b> — tap the floor
                   <button className="lnk" onClick={() => s.setPlacing(null)}>cancel</button></div>
               : <div className="mini hint">Tap an item, then tap the floor</div>}
-            {CATALOGUE.map(g => (
+            {GROUPS.map(g => (
               <div key={g.group}>
                 <div className="sec">{g.group}</div>
                 <div className="tbGrid">
-                  {g.tools.map(t => (
-                    <button key={t.kind + t.type}
-                      className={`tbItem ${s.placing?.type === t.type ? 'on' : ''}`}
-                      data-tip={t.label}
+                  {assetsIn(g.category).map(a => (
+                    <button key={a.id}
+                      className={`tbItem ${s.placing?.type === a.id ? 'on' : ''}`}
+                      data-tip={`${a.label} · ${a.mount.replace('-', ' ')}`}
                       onClick={() => s.setPlacing(
-                        s.placing?.type === t.type ? null : { kind: t.kind, type: t.type })}>
-                      <i>{t.icon}</i>
+                        s.placing?.type === a.id ? null : { kind: KIND[a.category], type: a.id })}>
+                      <i>{a.icon}</i>
                     </button>
                   ))}
                 </div>
@@ -100,7 +82,7 @@ export default function Toolbox() {
                 {s.items.map(i => (
                   <button key={i.id} className={`rowbtn ${i.on ? 'open' : ''}`}
                     onClick={() => s.updateItem(i.id, { on: !i.on })}>
-                    <span>{i.type}</span>
+                    <span>{ASSETS.find(a => a.id === i.asset)?.label ?? i.type}</span>
                     <b>{i.on ? 'on' : 'off'}</b>
                   </button>
                 ))}

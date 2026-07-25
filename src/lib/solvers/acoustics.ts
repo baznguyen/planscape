@@ -1,5 +1,6 @@
 /** Sabine/Eyring RT60 from actual surface materials, furniture and open apertures. */
 import { ROOMS, WALLS, ALL_OPENINGS, roomArea, roomHeight, roomVolume, roomById } from '../model/building';
+import { assetById } from '@/lib/model/assets';
 import type { Room, Opening } from '../model/building';
 import { MATERIALS, FIXTURES, C_SOUND, type Band } from '../model/materials';
 
@@ -85,13 +86,24 @@ export function transmissionLoss(from: Room, to: Room, openIds: Set<string>): nu
 }
 /** Free-field complex pressure sum for speaker interference. */
 export function splField(
-  spks: { x: number; z: number; y: number; db: number }[],
+  spks: { x: number; z: number; y: number; db: number; asset?: string; boundaries?: number }[],
   freq: number, x: number, z: number, earH = 1.2
 ): number {
   const k = (2 * Math.PI * freq) / C_SOUND;
   let re = 0, im = 0;
   for (const s of spks) {
-    const A = Math.pow(10, (s.db - 86) / 20);
+    const spec = s.asset ? assetById(s.asset)?.audio : undefined;
+    let level = s.db;
+    if (spec) {
+      // out of band the driver simply is not producing this frequency
+      if (freq < spec.freqLoHz * 0.85 || freq > spec.freqHiHz * 1.15) continue;
+      level = spec.isSub
+        ? spec.maxSplDb
+        : spec.sensitivityDb + 10 * Math.log10(Math.max(0.1, spec.powerW));
+      // boundary coupling: coherent +6 dB per surface for a sub, +3 dB broadband
+      level += Math.max(0, (s.boundaries ?? 1) - 1) * spec.boundaryGainDbPerSurface;
+    }
+    const A = Math.pow(10, (level - 86) / 20);
     const d = Math.max(0.35, Math.hypot(x - s.x, z - s.z, earH - s.y));
     re += (A * Math.cos(-k * d)) / d;
     im += (A * Math.sin(-k * d)) / d;

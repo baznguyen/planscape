@@ -44,7 +44,7 @@ function swatch(url: string, w: number, d: number): THREE.Texture {
   return t;
 }
 function Floors() {
-  const { floor, overlays, thermal, setHover, setSelected, hoverRoom, finishes } = useStore();
+  const { floor, overlays, thermal, setHover, setSelected, hoverRoom, finishes, placing, placeAt } = useStore();
   return <>{ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
     const A = roomArea(r), c = roomCentre(r);
     const w = r.x1 - r.x0, d = r.z1 - r.z0;
@@ -58,7 +58,13 @@ function Floors() {
       <mesh key={r.id} position={[c.x, yOf(r.floor) + 0.03, c.z]} receiveShadow
         onPointerOver={e => { e.stopPropagation(); setHover(r.id); }}
         onPointerOut={() => setHover(null)}
-        onClick={e => { e.stopPropagation(); setSelected(r.id); }}>
+        onClick={e => {
+          e.stopPropagation();
+          // while something is armed the floor IS the placement target: it sits
+          // above the catcher plane, so it would otherwise swallow every tap
+          if (placing) placeAt(floor, e.point.x, e.point.z, r.id);
+          else setSelected(r.id);
+        }}>
         <boxGeometry args={[w, 0.06, d]} />
         <meshStandardMaterial color={map ? '#ffffff' : col} map={map} roughness={0.9}
           emissive={hoverRoom === r.id ? '#b8873f' : '#000000'} emissiveIntensity={hoverRoom === r.id ? 0.35 : 0} />

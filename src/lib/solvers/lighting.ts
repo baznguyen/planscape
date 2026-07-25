@@ -1,5 +1,6 @@
 /** Illuminance via the lumen method, with UF derived from room index + real surface reflectances. */
 import { ROOMS, roomArea, roomHeight, roomById } from '../model/building';
+import { assetById } from '@/lib/model/assets';
 import type { Room } from '../model/building';
 import { MATERIALS } from '../model/materials';
 
@@ -22,6 +23,8 @@ export interface Light {
   id: string; type: LightType; floor: 0|1; room: string;
   x: number; z: number; y: number;
   on: boolean; kelvin: number; rgb: string | null; dim: number; bulbs: number;
+  /** catalogue id, when the light came from the asset library */
+  asset?: string;
 }
 /** UF table for a typical direct LED luminaire at reference reflectances (0.70/0.50/0.20). */
 const UF_TABLE: [number, number][] = [
@@ -56,17 +59,22 @@ export function roomIlluminance(r: Room, lights: Light[]): { lux: number; target
   let lm = 0, W = 0;
   for (const l of lights) {
     if (l.room !== r.id || !l.on) continue;
-    const t = LTYPES[l.type];
-    lm += t.lm * l.bulbs * l.dim;
-    W += t.W * l.bulbs * l.dim;
+    // a catalogue fitting carries its own datasheet figures; fall back to the
+    // generic type table for auto-designed luminaires
+    const spec = l.asset ? assetById(l.asset)?.light : undefined;
+    const lmEach = spec?.lumens ?? LTYPES[l.type]?.lm ?? 800;
+    const wEach = spec?.watts ?? LTYPES[l.type]?.W ?? 10;
+    lm += lmEach * l.bulbs * l.dim;
+    W += wEach * l.bulbs * l.dim;
   }
   const uf = utilisationFactor(r);
   return { lux: (lm * uf * MAINTENANCE) / A, target: LUX_TARGET[r.use] ?? 100, lumens: lm, uf, watts: W };
 }
 /** Beam pool diameter and centre illuminance for one luminaire. */
 export function beamPool(l: Light, floorY = 0) {
-  const t = LTYPES[l.type];
-  const beam = (t.beam * Math.PI) / 180;
+  const spec = l.asset ? assetById(l.asset)?.light : undefined;
+  const t = LTYPES[l.type] ?? { lm: 800, W: 10, beam: 90 };
+  const beam = ((spec?.beamDeg ?? t.beam) * Math.PI) / 180;
   const h = Math.max(0.4, l.y - floorY - 0.0);
   const d = 2 * h * Math.tan(beam / 2);
   const omega = 2 * Math.PI * (1 - Math.cos(beam / 2));
