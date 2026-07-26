@@ -101,8 +101,17 @@ export const CLADDING_BANDS: CladdingBand[] = [
   { face: 'N', storey: 1, material: 'renderFirst', from: 0, to: 1 },
   { face: 'S', storey: 1, material: 'renderFirst', from: 0, to: 1 },
   { face: 'W', storey: 1, material: 'gridPanelFirst', from: 0, to: 1 },
-  { face: 'E', storey: 1, material: 'gridPanelSecond', from: 0, to: 0.45 },
-  { face: 'E', storey: 1, material: 'verticalClad', from: 0.45, to: 1 },
+  /**
+   * The balcony (f_bal, z 3.0-6.0) is a recess, not a clad wall — SK1 draws
+   * a glass balustrade on its open sides, and Exterior.tsx already renders
+   * the balcony's own slab and balustrade glass. But with no gap here, the
+   * cladding ran straight across behind that glass anyway, so the balcony
+   * read as a walled-in room with a rail bolted to the front of it. Fraction
+   * of F1's 9.56 m depth (z0=0.72): (3.0-0.72)/9.56=0.2385,
+   * (6.0-0.72)/9.56=0.5523.
+   */
+  { face: 'E', storey: 1, material: 'gridPanelSecond', from: 0, to: 0.2385 },
+  { face: 'E', storey: 1, material: 'verticalClad', from: 0.5523, to: 1 },
 ];
 
 /** Roof pitch as a rise per metre of run. */

@@ -293,8 +293,6 @@ function layout(r: Room): Item[] {
    * both correct here and the only thing that will still be correct on the next
    * customer's plan.
    */
-  if (f.includes('island')) put(<Island len={Math.min(2.8,w*0.6)}/>, c.x, c.z+1.0,
-    Math.min(2.8,w*0.6), 1.0);
   let benchAnchor: { x: number; z: number; ry: number } | null = null;
   if (f.includes('bench')) {
     const bl = Math.min(r.use === 'kitchen' ? 4.0 : 1.9, (along ? w : d) * 0.8);
@@ -329,6 +327,21 @@ function layout(r: Room): Item[] {
     } else {
       put(<Oven/>, r.x0+0.45, r.z0+0.4, 0.65, 0.6);
     }
+  }
+  /**
+   * The island used to go at a single fixed offset from room centre
+   * (`c.x, c.z+1.0`) with no awareness of the bench, the oven, or the door —
+   * on this kitchen that put it right where the door into the pantry swings.
+   * Placed after the bench/oven above so it can dodge both (`avoid: true`),
+   * with a real candidate list instead of one guessed offset, and the
+   * existing door-swing check `place()` already runs catches the rest.
+   */
+  if (f.includes('island')) {
+    const il = Math.min(2.8, w * 0.6);
+    place(<Island len={il}/>, [
+      [c.x, c.z, 0], [c.x, c.z + d * 0.15, 0], [c.x, c.z - d * 0.15, 0],
+      [c.x + w * 0.12, c.z, 0], [c.x - w * 0.12, c.z, 0],
+    ], il, 1.0, { avoid: true });
   }
   if (f.includes('bath')) {
     // Powder is a toilet-and-vanity room by definition; every other bath-use

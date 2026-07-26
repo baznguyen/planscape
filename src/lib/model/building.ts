@@ -69,7 +69,11 @@ const R = (
 
 export const ROOMS: Room[] = [
   // ---- ground ----
-  R('g_alf','Alfresco',0,0,6.5,3.1,7.6,'outdoor','timberFloor',['dining','sofa'],0,{outdoor:true}),
+  // z1 was 7.6, straddling across the Living/Meals divide (z=5.6) into
+  // Living's side. A beam+post line at z=4.64 (SHS posts both ends) runs the
+  // full width (x -0.03 to 6.47) and marks the real edge of the alfresco
+  // structure — it's confined to the Meals side, not the Living side.
+  R('g_alf','Alfresco',0,0,6.5,3.1,4.65,'outdoor','timberFloor',['dining','sofa'],0,{outdoor:true}),
   // --- open-plan core: LIVING / FAMILY-DINING / KITCHEN / MEALS are ONE volume on the
   // plan (an 11,280 clear span). The line the drawing shows between them is
   // "BEAM OVER TO ENG DETAILS" — a downstand beam, not a wall. See BEAMS below.
@@ -85,17 +89,24 @@ export const ROOMS: Room[] = [
   R('g_srv','Servery',0,15.38,17.58,2.99,5.13,'kitchen','timberFloor',['bench'],0,{zone:'open'}),
   R('g_pdr','Powder',0,15.38,17.94,7.33,9.33,'bath','ceramicTile',['bath']),
   R('g_lin','Linen',0,15.38,17.05,5.21,7.33,'store','ceramicTile',[]),
-  R('g_wil','Walk-in Linen',0,17.05,19.00,5.21,7.33,'store','ceramicTile',['robe']),
+  // No wall between this and the lobby beside it — what SK1 draws at x=19.00
+  // is a laundry chute box (see WALLS below), not a partition. Zoned so
+  // Redline reads them as one open space rather than flagging an invented wall.
+  R('g_wil','Walk-in Linen',0,17.05,19.00,5.21,7.33,'store','ceramicTile',['robe'],0,{zone:'wil_lobby'}),
   // The lobby SK1 draws between the hall and the service rooms. Without it the
   // laundry and the walk-in linen have to be entered through each other, which
   // is how the model ended up with a door from the garage into the WIL.
-  R('g_lob','Laundry Lobby',0,19.00,20.09,5.13,7.33,'hall','ceramicTile',[]),
+  R('g_lob','Laundry Lobby',0,19.00,20.09,5.13,7.33,'hall','ceramicTile',[],0,{zone:'wil_lobby'}),
   R('g_ldy','Laundry',0,17.94,20.04,7.33,10.74,'laundry','ceramicTile',['laundry']),
   // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
   R('g_gar','Double Garage',0,20.09,25.93,5.13,10.81,'garage','slabOnGround',['car','car'],0,{tour:true}),
   R('g_gst','Guest Bedroom',0,17.9,21.54,0.39,3.00,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
   R('g_en2','Ensuite 2',0,21.54,23.39,0.39,2.95,'bath','ceramicTile',['bath']),
-  R('g_bd5','Bedroom 5',0,23.44,25.90,0.39,3.53,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  // x1 was 25.90 with no wall at all beyond it — the room's real east face
+  // (with a window) sits at a wall pair x=26.85/26.94, a step further out
+  // than the rest of the facade to clear the porch corner. Centreline used;
+  // INFERENCE on the exact step detail near the porch, confirm against SK1.
+  R('g_bd5','Bedroom 5',0,23.44,26.90,0.39,3.53,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
   R('g_hal','Hall',0,17.85,23.44,3.00,5.13,'hall','timberFloor',[]),
   R('g_ent','Entry Foyer',0,23.44,25.90,3.53,5.13,'hall','ceramicTile',[],0,{tour:true}),
   R('g_por','Porch',0,25.93,28.03,3.5,6.5,'outdoor','ceramicTile',[],0,{outdoor:true}),
@@ -162,7 +173,11 @@ export const WALLS: Wall[] = [
   // West wall of the whole service block: one run, z 3,270 to the north face.
   W('gi_21',0,15.38,3.27,15.38,9.33,'studWall',false,'E'),
   W('gi_22',0,17.05,5.21,17.05,7.33,'studWall',false,'E'),
-  W('gi_23',0,19.00,5.21,19.00,7.33,'studWall',false,'E'),
+  // REMOVED — gi_23, a stud wall at x=19,000 between the WIL and the lobby.
+  // A high-res crop of that corner shows a hatched box labelled "LAUNDRY
+  // CHUTE, REFER DETAIL 'R'" at that position, not a wall pair — the chute's
+  // own outline was being read as a partition. There is no wall between the
+  // WIL and the lobby; see the zone tag on both rooms above.
   W('gi_24',0,15.38,5.13,19.03,5.13,'studWall',false,'N'),
   // Measured off SK1: this wall runs z 3,000 and stops at x 23,440, where a
   // north-south wall picks up and the boundary steps 530 north to serve
@@ -171,6 +186,11 @@ export const WALLS: Wall[] = [
   W('gi_9',0,18.40,3.00,23.44,3.00,'studWall',false,'N'),
   W('gi_9b',0,23.44,3.53,25.93,3.53,'studWall',false,'N'),
   W('gi_9c',0,23.44,0.39,23.44,3.53,'studWall',false,'E'),
+  // Bedroom 5's real east wall — was missing entirely, which is why the room
+  // had no window on this face at all. Paired faces at x=26.85/26.94 (a
+  // window gap sits in the inner face, z 0.85-1.46); generateWindows() gives
+  // it a proportionate window rather than guessing the exact AW schedule code.
+  W('gi_25',0,26.90,0.39,26.90,3.53,'brickVeneerR20',true,'E'),
   // Re-measured: the paired faces (x 20.04/20.13) both terminate at z 10.90,
   // matching gw_n3 — modelled to z 11 it overshot the garage's NW corner by
   // 100 mm, reading as a wall stub sticking past the building line.
@@ -214,6 +234,24 @@ export const WALLS: Wall[] = [
   W('fi_10',1,19.1,7.9,19.1,10.28,'studWallAcoustic',false,'E'),
   W('fi_11',1,13.0,6.35,21.5,6.35,'studWall',false,'N'),
   W('fi_12',1,19.5,5.0,19.5,6.35,'studWall',false,'E'),
+  /**
+   * NOT YET FIXED — flagged so the measurement isn't lost, not applied.
+   * Currently one run x=19.5 to 25.95 at z=5.0, which the user reports as
+   * sealing Bed4 and Principal Suite off from each other with no way past.
+   * Re-measured off SK1: the real paired faces are at z=5.56/5.65
+   * (centreline 5.605), covering only x=22.39-26.85 — a regular-pitch
+   * dashed line at z=5.61, almost exactly between those two faces, is a
+   * roofline, not a third wall. West of x=22.39 there is no wall on this
+   * axis at all, which is the missing hallway.
+   *
+   * Applying that position directly (tried it) makes Principal Suite
+   * overlap the Landing by 1.7 m2, because f_pri's real footprint is
+   * evidently notched here — narrower at its north end than its south —
+   * and a single Room rectangle cannot represent that. Fixing this properly
+   * means splitting f_pri into two rectangles (or introducing a hallway
+   * room for the gap) and re-deriving f_lnd's east edge and d_f5 to match,
+   * not a one-line coordinate change. Left as-is pending that.
+   */
   W('fi_13',1,19.5,5.0,25.95,5.0,'studWallAcoustic',false,'N'),
   W('fi_14',1,19.5,0.72,19.5,5.0,'studWallAcoustic',false,'E'),
   W('fi_15',1,19.6,2.45,21.7,2.45,'studWall',false,'N'),
@@ -269,7 +307,16 @@ const O = (
 export const OPENINGS: Opening[] = [
   // ground doors
   O('d_entry',0,'gi_1',25.93,4.4,1.1,2.34,0,'door','doorSolid',0.9,'g_ent',null,'E'),
-  O('d_alf',0,'gw_w',6.6,5.35,3.6,2.15,0,'slider','glazingSingle',0.5,'g_mea',null,'W'),
+  /**
+   * Was 3.6m wide at z=5.35 — a leftover from before the alfresco was
+   * re-measured (see g_alf above). The sheet labels this "ASD 2436" (an
+   * aluminium slider, 2,436mm), and its north jamb sits right at the same
+   * beam/post line (z=4.64) that now bounds the alfresco. INFERENCE on the
+   * exact z-span — the track runs further south than one crop could confirm
+   * cleanly; centred here so its north edge lands on the confirmed beam line.
+   * Confirm against the sheet before trusting the z more precisely than that.
+   */
+  O('d_alf',0,'gw_w',6.6,3.42,2.436,2.15,0,'slider','glazingSingle',0.5,'g_mea',null,'W'),
   O('d_gar',0,'gi_20',25.93,8.3,4.81,2.143,0,'garage','garageDoor',0.9,'g_gar',null,'E'),
   // "CSD 720" — a 720 cavity slider, jambs at x 18.40 and x 19.12 on the sheet.
   // It has to be at that end: the flight runs the length of this wall, and only
@@ -278,7 +325,11 @@ export const OPENINGS: Opening[] = [
   O('d_g1',0,'gi_9',18.76,3.00,0.72,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
   O('d_g2',0,'gi_9b',24.6,3.53,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
   O('d_g3',0,'gi_13',21.54,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
-  O('d_g4',0,'gi_11',19.44,7.33,0.82,2.34,0,'door','doorSolid',0.9,'g_lob','g_ldy','N'),
+  // REMOVED — d_g4, a door from the lobby straight into the laundry at
+  // x=19.44. A tight crop of the laundry's own boundary shows exactly one
+  // door swing into it, at the WIL end (d_g4b below); nothing swings in from
+  // the lobby side. The lobby still reaches the laundry via the WIL, which
+  // is now open to it (see the gi_23 removal above).
   O('d_g4b',0,'gi_11',18.56,7.33,0.87,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
   // LINEN opens to the family room through the 1,700 the sheet dimensions, with
   // the two 820 leaves it labels. It is a press, not a room you walk through.

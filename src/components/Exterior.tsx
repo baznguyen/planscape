@@ -194,11 +194,18 @@ function Subject() {
       <Box key={z} w={0.2} h={LEVELS.groundFcl} d={0.2} c={M.render}
         p={[27.9, LEVELS.groundFcl / 2, z]} info="Rendered porch pier" />
     ))}
-    {/* cantilevered balcony, 4.44 m2, with a glass balustrade */}
+    {/* cantilevered balcony, 4.44 m2, with a glass balustrade on both open
+        sides — SK1 draws it open on the east (street) and north (Bed4) edges,
+        walled only on the west (Principal Suite, the ASD 2427 slider) and
+        south. The cladding gap that used to run solid behind this glass is
+        fixed in facade.ts's CLADDING_BANDS. */}
     <Box w={1.5} h={0.16} d={3.1} c={M.render} p={[26.8, LEVELS.firstFfl - 0.08, 4.5]}
       info="Cantilevered balcony 4.44 m²" />
     <mesh position={[27.55, LEVELS.firstFfl + 0.5, 4.5]} rotation={[0, Math.PI / 2, 0]}>
       <boxGeometry args={[3.1, 1.0, 0.04]} />
+      <meshStandardMaterial color={M.glass} transparent opacity={0.3} roughness={0.05} /></mesh>
+    <mesh position={[26.8, LEVELS.firstFfl + 0.5, 6.0]}>
+      <boxGeometry args={[1.5, 1.0, 0.04]} />
       <meshStandardMaterial color={M.glass} transparent opacity={0.3} roughness={0.05} /></mesh>
 
     {/* downpipes at the corners, as the elevations show */}
