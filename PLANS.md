@@ -69,6 +69,38 @@ the same two numbers per page. The calibration sliders in the Layers sheet exist
 because the next plan set will be plotted differently — not as a substitute for
 getting these right.
 
+## Checking the model against the sheet
+
+`tools/walldiff.py` runs the comparison that should have existed from the first
+commit: every wall in `building.ts` against the line the drawing actually puts
+there. It is the same idea as the overlay, expressed as numbers so it can be
+read in a terminal and diffed between commits.
+
+```
+python3 tools/walldiff.py samples/SK1.pdf --worst 12
+```
+
+Read it as triage, not pass/fail:
+
+| offset | what it usually means |
+|---|---|
+| under 60 mm | centreline versus face — fine |
+| 100–250 mm | a wall thickness gone astray; worth a look |
+| over 500 mm | a transcription error |
+
+As it stands, the ground floor's worst wall is 200 mm out and most are inside
+40 mm. The first floor's worst is 1,360 mm.
+
+## The north wall steps
+
+Worth writing down because it caught me: the main house's north wall is at
+z ≈ 9.47 from the west end to x ≈ 17.9, and only the laundry and garage block
+runs on to z ≈ 10.85. `gw_n` is modelled as one straight run at z = 11 across
+the whole length, which is why walldiff matches it against the garage's line and
+reports a comfortable-looking 100 mm — the tool compares a wall against ONE
+measured line, so a wall modelled straight where the drawing steps will hide
+inside its own average. Split the run before trusting the number.
+
 ## What is still open
 
 The first floor of this set has not been re-measured. Registered against the
