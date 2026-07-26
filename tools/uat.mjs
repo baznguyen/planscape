@@ -531,7 +531,15 @@ const SIZES = [
 
 const run = async () => {
   const browser = await chromium.launch({
-    executablePath: process.env.PW_CHROMIUM ?? '/opt/pw-browsers/chromium',
+    /**
+     * Let Playwright find its own browser. This used to hard-code
+     * /opt/pw-browsers/chromium, which is a path that exists on exactly one
+     * machine — so both harnesses failed on a fresh clone with an
+     * executable-not-found error that looks like a Playwright bug rather than a
+     * checked-in absolute path. `npx playwright install chromium` puts it where
+     * the library expects; PW_CHROMIUM is there for sandboxes that pre-stage one.
+     */
+    ...(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}),
   });
   let total = 0, failed = 0;
   const report = [];

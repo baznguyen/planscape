@@ -117,6 +117,10 @@ ls .next/static/css/
 branches on store state must read `useStore.getState()` inside the handler, not
 close over the value. A placement bug that took a day to find was exactly this.
 
+**`PW_CHROMIUM`** overrides the browser the harnesses launch. Leave it unset on
+a normal machine — Playwright finds its own. Set it only where a browser is
+pre-staged outside the usual cache (a sandbox or CI image).
+
 **The Python tools need PyMuPDF, Pillow and NumPy** — see
 `tools/requirements.txt`. They are local tooling only and are never bundled.
 
