@@ -25,6 +25,11 @@ fourth question: is the model faithful to the drawing?
 npm run setup      # npm install, then `npx playwright install chromium`
 ```
 
+Both harnesses drive a **running server** — start one with `npm run dev` or
+`npm run build && npm start` first. They default to `http://localhost:3000`;
+`SITESCAPE_URL` points them somewhere else, and `PW_CHROMIUM` overrides the
+browser binary if you have one pre-staged.
+
 `views` and `uat` both drive a real browser. `npm install` fetches the Playwright
 package but not a browser binary, so a fresh clone fails on the first launch with
 an executable-not-found error rather than a test failure.

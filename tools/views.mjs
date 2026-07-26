@@ -14,13 +14,19 @@
  *   node tools/views.mjs                 capture the standard views
  *   node tools/views.mjs --base          re-baseline (only when a change is intended)
  *
- * Requires a server on :3111 and playwright available.
+ * Requires a running server (npm start) and `npx playwright install chromium`.
  */
 import { chromium } from 'playwright';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-const URL = process.env.SITESCAPE_URL ?? 'http://localhost:3111/';
+/**
+ * The server to drive. Defaults to :3000, which is what `npm run dev` and
+ * `npm start` serve — the old default of :3111 was a scratch port from one
+ * machine, and it meant the harness could not find a server that was plainly
+ * running. Override with SITESCAPE_URL to point at a preview deployment.
+ */
+const URL = process.env.SITESCAPE_URL ?? 'http://localhost:3000/';
 const OUT = 'tools/views';
 const BASE = 'tools/views/baseline.json';
 const rebase = process.argv.includes('--base');

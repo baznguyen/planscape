@@ -25,7 +25,13 @@
  */
 import { chromium } from 'playwright';
 
-const URL = process.env.SITESCAPE_URL ?? 'http://localhost:3111/';
+/**
+ * The server to drive. Defaults to :3000, which is what `npm run dev` and
+ * `npm start` serve — the old default of :3111 was a scratch port from one
+ * machine, and it meant the harness could not find a server that was plainly
+ * running. Override with SITESCAPE_URL to point at a preview deployment.
+ */
+const URL = process.env.SITESCAPE_URL ?? 'http://localhost:3000/';
 const only = (process.argv.find(a => a.startsWith('--only=')) ?? '').split('=')[1];
 
 /* ------------------------------------------------------------------ *
