@@ -1,6 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { ROOMS, ALL_OPENINGS, GEOM, roomAt, type Room } from '@/lib/model/building';
+import type { NoteKind } from '@/lib/model/planNotes';
 import { autoDesign, type Light, AMBIENCE, warmDim } from '@/lib/solvers/lighting';
 import { settle, stepThermal, type ThermalState, type ThermalCtx, type RoomThermalBreakdown } from '@/lib/solvers/thermal';
 import { WIND } from '@/lib/solvers/airflow';
@@ -18,7 +19,7 @@ import { paletteById, roleColour } from '@/lib/model/palettes';
 let idSeq = 0;
 const nextId = () => `${++idSeq}`;
 
-export type OverlayKey = 'dims'|'thermal'|'light'|'audio'|'air'|'hvac'|'wifi'|'plan';
+export type OverlayKey = 'dims'|'thermal'|'light'|'audio'|'air'|'hvac'|'wifi'|'plan'|'notes';
 export type ViewMode = 'walk' | 'plan' | 'street';
 
 export interface Speaker { id:string; type:string; floor:0|1; room:string; x:number; z:number; y:number; db:number;
@@ -55,6 +56,8 @@ interface S {
   view: ViewMode; floor: 0|1;
   month: number; minutes: number; playing: boolean; speed: number;
   overlays: Record<OverlayKey, boolean>;
+  noteKinds: Record<NoteKind, boolean>;
+  toggleNoteKind:(k:NoteKind)=>void;
   openIds: Set<string>;
   lights: Light[]; ambience: number;
   speakers: Speaker[]; acFreq: number; acRoom: string | null;
@@ -84,6 +87,7 @@ interface S {
   paints: PaintAssignment[];
   setView:(v:ViewMode)=>void; setFloor:(f:0|1)=>void;
   setMonth:(m:number)=>void; setMinutes:(m:number)=>void; togglePlay:()=>void;
+  setSpeed:(n:number)=>void;
   toggleOverlay:(k:OverlayKey)=>void;
   toggleOpening:(id:string)=>void; setAllOpenings:(open:boolean)=>void;
   autoLightRoom:(roomId:string)=>void; updateLight:(id:string,p:Partial<Light>)=>void;
@@ -138,7 +142,15 @@ const ctxOf = (s: Partial<S>): ThermalCtx => ({
 });
 export const useStore = create<S>((set, get) => ({
   view: 'walk', floor: 0, month: 0, minutes: 900, playing: false, speed: 9,
-  overlays: { dims:false, thermal:false, light:false, audio:false, air:false, hvac:false, wifi:false, plan:false },
+  overlays: { dims:false, thermal:false, light:false, audio:false, air:false, hvac:false, wifi:false, plan:false, notes:false },
+  /**
+   * Which categories of plan note are showing. 146 notes at once is the
+   * drawing, not a render of it — so the overlay opens on the ones that
+   * change what gets built, and the schedule codes and service marks are
+   * there when you go looking for them.
+   */
+  noteKinds: { opening:false, level:true, structure:true, safety:true,
+               service:false, joinery:true, note:true },
   openIds: new Set(ALL_OPENINGS.filter(o => o.defaultOpen || o.kind === 'cased').map(o => o.id)),
   lights: seedLights(), ambience: -1,
   speakers: [], acFreq: 80, acRoom: null,
@@ -162,7 +174,9 @@ export const useStore = create<S>((set, get) => ({
   setMonth: m => { set({ month: m }); get().resettleThermal(); },
   setMinutes: m => set({ minutes: m }),
   togglePlay: () => set(s => ({ playing: !s.playing })),
+  setSpeed: n => set({ speed: n }),
   toggleOverlay: k => set(s => ({ overlays: { ...s.overlays, [k]: !s.overlays[k] } })),
+  toggleNoteKind: k => set(s => ({ noteKinds: { ...s.noteKinds, [k]: !s.noteKinds[k] } })),
   toggleOpening: id => { const n = new Set(get().openIds); n.has(id) ? n.delete(id) : n.add(id);
     set({ openIds: n }); get().resettleThermal(); },
   setAllOpenings: open => { set({ openIds: open
@@ -318,8 +332,8 @@ if (typeof window !== 'undefined') {
         view: s.view, floor: s.floor, drawer: s.drawer, placing: s.placing,
         placeError: s.placeError, selectedRoom: s.selectedRoom, eyeLevel: s.eyeLevel,
         showRoof: s.showRoof, ambience: s.ambience, month: s.month,
-        minutes: Math.round(s.minutes), playing: s.playing, hvacOn: s.hvacOn,
-        overlays: { ...s.overlays },
+        minutes: Math.round(s.minutes), playing: s.playing, speed: s.speed, hvacOn: s.hvacOn,
+        overlays: { ...s.overlays }, noteKinds: { ...s.noteKinds },
         openCount: s.openIds.size,
         /**
          * What "all of them" means, so a test can assert against the model

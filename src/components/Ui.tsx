@@ -13,7 +13,15 @@ import { roomWallReflectance } from '@/lib/model/paint';
 import Toolbox from './Toolbox';
 import ReviewSection from './ReviewPanel';
 import WalkPad from './WalkPad';
-import { AMB_ICONS, OVERLAY_ICON } from './ui/icons';
+import { AMB_ICONS, OVERLAY_ICON, RATE_ICON, PAUSE_ICON } from './ui/icons';
+import { NOTE_LABEL, type NoteKind } from '@/lib/model/planNotes';
+
+/**
+ * Playback rates, in simulated minutes per real second. A whole day takes
+ * 2m40s, 48s, 16s and 6s respectively — slow enough to watch a shadow cross a
+ * room, fast enough to see a whole day of it without waiting.
+ */
+const RATES = [9, 30, 90, 240];
 import Sheet from './ui/Sheet';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -22,7 +30,8 @@ const OVERLAYS: [OverlayKey, string][] = [
   ['light','Lighting — lux & beams'], ['audio','Acoustics — SPL waves'],
   ['air','Natural airflow'], ['hvac','Air conditioning'],
   ['wifi','WiFi coverage'],
-  ['plan','Drawing overlay — dashed wall lines'],
+  ['plan','Drawing overlay — the sheet itself'],
+  ['notes','Plan notes — what the drawing says'],
 ];
 /** Compact ambience presets: an icon carries the mood, the tooltip carries the numbers. */
 
@@ -153,6 +162,22 @@ export default function Ui() {
               <i>{OVERLAY_ICON[k]}</i><span>{tip.split(' — ')[0]}</span>
             </button>)}
         </div>
+        {/* 146 notes at once is the drawing, not a render of it. Filter by what
+            the note is about — the categories are the ones a builder sorts by,
+            and they are what the pin colours mean. */}
+        {s.overlays.notes && (
+          <>
+            <div className="sec">Plan notes</div>
+            <div className="tbTabs sm wrap">
+              {(Object.keys(NOTE_LABEL) as NoteKind[]).map(k => (
+                <button key={k} className={s.noteKinds[k] ? 'on' : ''}
+                  aria-pressed={s.noteKinds[k]}
+                  onClick={() => s.toggleNoteKind(k)}>{NOTE_LABEL[k]}</button>
+              ))}
+            </div>
+            <div className="mini hint">Tap a pin on the model to open the note in full.</div>
+          </>
+        )}
         {/* The sheet underlay is the reason this overlay exists, so its
             registration controls live with it rather than in a settings screen
             nobody opens. No drawing announces its own plot scale in a form a
@@ -209,15 +234,30 @@ export default function Ui() {
       <Toolbox />
       <WalkPad />
 
+      {/* The time bar. Thin, because it sits over the model for the whole
+          session and every pixel of it is a pixel of the building you cannot
+          see. Stopped it is one play button and a clock; running it becomes a
+          rate selector, since the only thing you want while a time lapse is
+          playing is to change how fast it is going. */}
       <footer className="bar sun">
         <button className="play" aria-label={s.playing ? 'Pause the time lapse' : 'Play the time lapse'}
-          onClick={s.togglePlay}>{s.playing ? '❚❚' : '▶'}</button>
+          onClick={s.togglePlay}>{s.playing ? PAUSE_ICON : RATE_ICON[0]}</button>
+        {s.playing && (
+          <span className="rates" role="group" aria-label="Playback rate">
+            {RATES.map((r, i) => (
+              <button key={r} className={s.speed === r ? 'on' : ''}
+                aria-label={`${['Normal', 'Fast', 'Faster', 'Fastest'][i]} — ${r} minutes a second`}
+                aria-pressed={s.speed === r}
+                onClick={() => s.setSpeed(r)}>{RATE_ICON[i]}</button>
+            ))}
+          </span>
+        )}
         <select value={s.month} aria-label="Month" onChange={e => s.setMonth(+e.target.value)}>
           {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
         <span className="clock">{fmt(s.minutes)}</span>
         <input type="range" min={0} max={1439} step={5} value={Math.round(s.minutes)} aria-label="Time of day"
           onChange={e => { s.setMinutes(+e.target.value); s.tickThermal(600); }} />
-        <span className="rd">{sun.isDay ? `☀ ${sun.ghi.toFixed(0)} W/m²` : '☾ night'} · {s.outdoorT.toFixed(1)}°C</span>
+        <span className="rd">{sun.isDay ? `☀ ${sun.ghi.toFixed(0)}` : '☾'} · {s.outdoorT.toFixed(0)}°</span>
       </footer>
     </>
   );

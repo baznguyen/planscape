@@ -80,9 +80,16 @@ function dimLabel(mm: number, night: boolean): Painted {
   return paint(`d|${text}|${night}`, c => {
     c.font = F(13, 700);
     const w = c.measureText(text).width + 14, h = 21;
-    // semi-transparent, so the thing being measured stays visible under it
-    c.fillStyle = night ? 'rgba(14,20,32,.62)' : 'rgba(255,255,255,.58)';
-    c.strokeStyle = night ? 'rgba(255,217,138,.55)' : 'rgba(17,22,28,.42)';
+    /**
+     * Roughly 70% transparent. The first pass at this used .58, which is not
+     * really transparent — it is a pale panel with the render faintly showing
+     * through, and with a dozen of them on screen the model disappears behind
+     * its own annotation. At .30 the chip reads as a tint over the building
+     * rather than a card on top of it, and the text carries the legibility on
+     * its own weight and a hairline rule.
+     */
+    c.fillStyle = night ? 'rgba(14,20,32,.34)' : 'rgba(255,255,255,.30)';
+    c.strokeStyle = night ? 'rgba(255,217,138,.5)' : 'rgba(17,22,28,.34)';
     c.lineWidth = 1.4;
     roundRect(c, 0.7, 0.7, w - 1.4, h - 1.4, 5);
     c.fill(); c.stroke();
@@ -101,8 +108,8 @@ function roomLabel(name: string, area: number, wide: number, deep: number, night
   const w = Math.max(measure(l1, F(12.5, 650)), measure(l2, F(14, 750)), measure(l3, F(10, 550))) + 18;
   const h = 50;
   return paint(`r|${l1}|${l2}|${l3}|${night}`, c => {
-    c.fillStyle = night ? 'rgba(14,20,32,.6)' : 'rgba(255,255,255,.55)';
-    c.strokeStyle = night ? 'rgba(255,217,138,.4)' : 'rgba(20,28,40,.28)';
+    c.fillStyle = night ? 'rgba(14,20,32,.32)' : 'rgba(255,255,255,.30)';
+    c.strokeStyle = night ? 'rgba(255,217,138,.36)' : 'rgba(20,28,40,.24)';
     c.lineWidth = 1.4;
     roundRect(c, 0.7, 0.7, w - 1.4, h - 1.4, 6);
     c.fill(); c.stroke();

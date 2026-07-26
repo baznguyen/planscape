@@ -208,6 +208,24 @@ function Subject() {
 
 /** Landscaping — visible from the street AND through the windows from inside. */
 export function Garden() {
+  /** Boundary hedge positions, minus whatever the crossovers need clear. */
+  const hedge = useMemo(() => {
+    const gaps = ALL_OPENINGS
+      .filter(o => o.floor === 0 && (o.kind === 'garage' || o.id === 'd_entry'))
+      .map(o => ({
+        z: o.z,
+        // a car needs more than the door width to swing into a bay off a
+        // driveway; a person needs a path
+        half: o.w / 2 + (o.kind === 'garage' ? 1.3 : 0.7),
+      }));
+    const out: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      const z = -1 + i * 1.1;
+      if (gaps.some(g => Math.abs(z - g.z) < g.half)) continue;
+      out.push(z);
+    }
+    return out;
+  }, []);
   const shrubs = useMemo(() => {
     const s: [number,number,number][] = [];
     for (let z=0.8; z<3.4; z+=1.1) s.push([28.9,z,0.45]);
@@ -229,8 +247,19 @@ export function Garden() {
     {shrubs.map(([x,z,r],i)=>(
       <mesh key={i} position={[x,r*0.8,z]} castShadow><icosahedronGeometry args={[r,0]}/>
         <meshStandardMaterial color={M.hedge} roughness={1}/></mesh>))}
-    {Array.from({length:12}).map((_,i)=>(
-      <mesh key={`h${i}`} position={[33.6,0.45,-1+i*1.1]} castShadow><boxGeometry args={[0.55,0.9,1.02]}/>
+    {/**
+      * The front boundary hedge, with the crossovers cut out of it.
+      *
+      * It used to be twelve blocks marched straight down the boundary from
+      * z = -1 to z = 11.1, which put a metre-high hedge across the mouth of the
+      * driveway. Nobody drawing this by hand would do that; the hedge stops
+      * where the vehicles and the people cross it, and it is the openings that
+      * say where. So the gaps are taken from the model — the garage door's own
+      * width plus a manoeuvring margin, and the front door's path — rather than
+      * typed in, which means they stay right when the plan changes.
+      */}
+    {hedge.map((z,i)=>(
+      <mesh key={`h${i}`} position={[33.6,0.45,z]} castShadow><boxGeometry args={[0.55,0.9,1.02]}/>
         <meshStandardMaterial color={M.hedge} roughness={1}/></mesh>))}
     <Tree x={31.5} z={13.2} h={5.4}/><Tree x={31.8} z={-2.6} h={6.0}/>
     <Tree x={-7.5} z={1.6} h={5.2}/><Tree x={-7.8} z={9.4} h={5.6}/>

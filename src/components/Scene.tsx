@@ -18,6 +18,7 @@ import Furniture from './Furniture';
 import Exterior, { Garden } from './Exterior';
 import PlanOverlay, { Beams } from './PlanOverlay';
 import PlanSheet from './PlanSheet';
+import Notations from './Notations';
 import Airflow from './Airflow';
 import Placed, { PlacementPlane } from './Placed';
 import Dimensions from './Dimensions';
@@ -654,6 +655,7 @@ export default function Scene() {
       <Dimensions />
       <PlanOverlay />
       <PlanSheet />
+      <Notations />
       <PlacementPlane />
       <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><Airflow />
       <TargetRig />

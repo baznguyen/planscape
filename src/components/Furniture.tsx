@@ -2,8 +2,9 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
-import { ROOMS, GEOM, STAIRS, roomHeight, roomCentre, type Room } from '@/lib/model/building';
+import { ROOMS, GEOM, STAIRS, ALL_OPENINGS, roomHeight, roomCentre, type Room } from '@/lib/model/building';
 import { doorZones, blockedFraction } from '@/lib/model/clearance';
+import { anchorOk, foot, glazingFor, nudgeInside } from '@/lib/model/fitout';
 import { useStore } from '@/store/useStore';
 
 const y0 = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
@@ -136,9 +137,27 @@ const Planter = ({ h = 1.4 }: { h?: number }) => (<group>
   <mesh position={[0,0.4+h*0.35,0]} scale={[1,1.3,1]} castShadow>
     <sphereGeometry args={[h*0.4,12,12]}/><meshStandardMaterial color={C.green} roughness={1}/></mesh>
 </group>);
-const Curtain = ({ len = 1.6 }: { len?: number }) => (
-  <mesh position={[0,1.15,0]} castShadow><boxGeometry args={[len,2.2,0.06]}/>
-    <meshStandardMaterial color={C.fabric} roughness={1}/></mesh>);
+/**
+ * A pair of drapes at the jambs, not a slab across the opening.
+ *
+ * The old curtain was one opaque 2.2 m box the full width of wherever it was
+ * put, which is why the misplaced one read as a wall rather than as fabric.
+ * Drawn open — which is how a curtain is 99% of the time — it is two gathers
+ * stacked back at the reveals, translucent, with the glass clear between them.
+ */
+const Curtain = ({ len = 1.6 }: { len?: number }) => {
+  const g = Math.min(0.32, len * 0.22);
+  return (<group>
+    {[-1, 1].map(sgn => (
+      <mesh key={sgn} position={[sgn * (len / 2 - g / 2), 1.12, 0]} castShadow>
+        <boxGeometry args={[g, 2.15, 0.1]}/>
+        <meshStandardMaterial color={C.fabric} roughness={1} transparent opacity={0.72}/>
+      </mesh>))}
+    <mesh position={[0, 2.22, 0]}>
+      <boxGeometry args={[len, 0.04, 0.05]}/>
+      <meshStandardMaterial color={C.metal} roughness={0.5}/></mesh>
+  </group>);
+};
 /* ---------------- placement ---------------- */
 type Item = { el: JSX.Element; x: number; z: number; ry?: number };
 function layout(r: Room): Item[] {
@@ -152,14 +171,30 @@ function layout(r: Room): Item[] {
    * dropped rather than left blocking the door. The same zones are what the
    * reviewer checks against, so a regression here shows up as a finding.
    */
-  const place = (el: JSX.Element, cands: [number, number, number][], fw: number, fd: number) => {
+  const place = (el: JSX.Element, cands: [number, number, number][], fw: number, fd: number,
+                 opts: { needsWall?: boolean } = {}) => {
     for (const [x, z, ry] of cands) {
-      const swap = Math.abs(Math.abs(ry) - Math.PI / 2) < 0.4;
-      const hw = (swap ? fd : fw) / 2, hd = (swap ? fw : fd) / 2;
-      const fp = { x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd };
-      if (blockedFraction(fp, zones) < 0.06) { out.push({ el, x, z, ry }); return; }
+      if (anchorOk(x, z, fw, fd, ry, r, opts)) { out.push({ el, x, z, ry }); return; }
     }
   };
+  /**
+   * Put a piece down, sliding it back inside the room if the anchor arithmetic
+   * has pushed it out, and dropping it if it cannot fit at all.
+   *
+   * The old `add` wrote straight to the output with no test of any kind, which
+   * is how a car came to project three quarters of a metre through a shut
+   * garage door. Nothing sticks out of a room now — if it does not fit, it is
+   * not drawn, and the reviewer says so.
+   */
+  const put = (el: JSX.Element, x: number, z: number, fw: number, fd: number, ry = 0,
+               opts: { needsWall?: boolean } = {}) => {
+    const n = nudgeInside(x, z, fw, fd, ry, r);
+    if (!n) return;
+    if (opts.needsWall && !anchorOk(n.x, n.z, fw, fd, ry, r, opts)) return;
+    if (blockedFraction(foot(n.x, n.z, fw, fd, ry), zones) >= 0.06) return;
+    out.push({ el, x: n.x, z: n.z, ry });
+  };
+  /** Rugs and other floor coverings: no clearance rules, but still inside. */
   const add = (el: JSX.Element, x: number, z: number, ry = 0) => out.push({ el, x, z, ry });
   if (f.includes('rug')) add(<Rug w={Math.min(3.2,w*0.6)} d={Math.min(2.4,d*0.55)}/>, c.x, c.z);
   const sofas = f.filter(x => x === 'sofa').length;
@@ -191,15 +226,73 @@ function layout(r: Room): Item[] {
     [r.x0+0.8, r.z0+0.6, -Math.PI/2], [r.x1-0.8, r.z1-0.6, Math.PI/2]], 1.4, 0.7);
   if (f.includes('fridge')) place(<Fridge/>, [
     [r.x1-0.6, r.z0+0.5, 0], [r.x0+0.6, r.z0+0.5, 0], [r.x1-0.6, r.z1-0.5, 0]], 0.8, 0.75);
-  if (f.includes('oven')) add(<Oven/>, r.x0+0.45, r.z0+0.4);
-  if (r.use === 'kitchen') { add(<Island len={Math.min(2.8,w*0.6)}/>, c.x, c.z+1.0);
-    add(<Bench len={Math.min(4.0,w*0.8)} uppers/>, c.x, r.z0+0.35); }
-  if (r.use === 'laundry' || r.id === 'g_wip') add(<Bench len={Math.min(1.9,(along?w:d)*0.8)}/>, c.x, r.z1-0.35, Math.PI);
-  if (f.includes('bath')) add(<Bathroom/>, r.x0+0.55, r.z0+0.45);
+  if (f.includes('oven')) put(<Oven/>, r.x0+0.45, r.z0+0.4, 0.65, 0.6);
+  /**
+   * Kitchen joinery follows the fixture schedule, not the room's use.
+   *
+   * `use === 'kitchen'` also catches the servery, which is 1.7 m wide, and it
+   * was being given a breakfast island (1.02 m — it read as a random little
+   * table with two stools) and a run of overhead cabinets. A servery is a
+   * servery. The room schedule already says what is in each room; asking it is
+   * both correct here and the only thing that will still be correct on the next
+   * customer's plan.
+   */
+  if (f.includes('island')) put(<Island len={Math.min(2.8,w*0.6)}/>, c.x, c.z+1.0,
+    Math.min(2.8,w*0.6), 1.0);
+  if (f.includes('bench')) {
+    const bl = Math.min(r.use === 'kitchen' ? 4.0 : 1.9, (along ? w : d) * 0.8);
+    // against a wall, back to it — a bench run floating in a room is joinery
+    // nobody could plumb
+    place(<Bench len={bl} uppers={r.use === 'kitchen'}/>, [
+      [c.x, r.z0 + 0.35, 0], [c.x, r.z1 - 0.35, Math.PI],
+      [r.x0 + 0.35, c.z, Math.PI / 2], [r.x1 - 0.35, c.z, -Math.PI / 2],
+    ], bl, 0.7, { needsWall: true });
+  }
+  if (f.includes('bath')) put(<Bathroom/>, r.x0+0.55, r.z0+0.45, 2.2, 0.9);
+  /**
+   * Cars sit side by side across the garage door, not nose to tail.
+   *
+   * They were offset +/-1.45 m in x — the axis you drive along in this garage —
+   * so the render showed one car behind the other and the front one 770 mm
+   * through the shut panel lift door. A double garage is called double because
+   * two cars park abreast; the giveaway is the door, which is 4,810 wide for
+   * exactly that reason. So the door decides: cars line up across its width and
+   * point out through it.
+   */
   const cars = f.filter(x => x === 'car').length;
-  for (let i = 0; i < cars; i++) add(<Car/>, c.x + (i ? 1.45 : -1.45), c.z, Math.PI/2);
-  if (f.includes('curtain')) add(<Curtain len={Math.min(1.8,(along?w:d)*0.4)}/>,
-    along?c.x:r.x0+0.14, along?r.z0+0.14:c.z, along?0:Math.PI/2);
+  if (cars) {
+    const door = ALL_OPENINGS.find(o => o.floor === r.floor && o.kind === 'garage' &&
+      (o.a === r.id || o.b === r.id));
+    // drive axis is the door's normal; bays are spread along the door's width
+    const acrossX = !door || door.orient === 'E' || door.orient === 'W';
+    const CAR_W = 1.85, CAR_L = 4.4, BAY = 2.6;
+    for (let i = 0; i < cars; i++) {
+      const off = (i - (cars - 1) / 2) * BAY;
+      const x = acrossX ? c.x : c.x + off;
+      const z = acrossX ? c.z + off : c.z;
+      put(<Car/>, x, z, CAR_W, CAR_L, acrossX ? Math.PI / 2 : 0);
+    }
+  }
+  /**
+   * Curtains belong to windows.
+   *
+   * This used to hang one on a guessed wall — `r.z0 + 0.14` if the room was
+   * wider than deep. In the family/dining room that guess landed on the
+   * open-plan boundary with the kitchen, where the plan's 11,280 clear span
+   * means there is no wall at all, and a 1.8 m fabric slab stood in mid-air
+   * across the middle of the house looking exactly like a partition nobody had
+   * drawn. A curtain with no window behind it is not a curtain.
+   */
+  if (f.includes('curtain')) {
+    for (const g of glazingFor(r).slice(0, 3)) {
+      const vertical = Math.abs(g.orient === 'E' || g.orient === 'W' ? 1 : 0) === 1;
+      const ry = vertical ? Math.PI / 2 : 0;
+      const inward = g.x < c.x ? 0.16 : -0.16;
+      const inz = g.z < c.z ? 0.16 : -0.16;
+      put(<Curtain len={g.w + 0.3}/>, vertical ? g.x + inward : g.x,
+        vertical ? g.z : g.z + inz, g.w + 0.3, 0.1, ry, { needsWall: true });
+    }
+  }
   return out;
 }
 /** Staircase, balustrades and the alfresco roof — structural fit-out. */

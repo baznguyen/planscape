@@ -94,6 +94,9 @@ export const OVERLAY_ICON: Record<string, ReactElement> = {
   elec: (<S size={15}><path d="M13.5 2.5L5 13.5h5.5L9.5 21.5 19 10h-5.8z" /></S>),
   plan: (<S size={15}><rect x="3" y="3.5" width="18" height="17" rx="1.4" strokeDasharray="3 2.2" />
     <path d="M3 11h8M11 3.5v17" strokeDasharray="3 2.2" opacity=".7" /></S>),
+  /** a leader line to a note — what a drawing annotation looks like */
+  notes: (<S size={15}><path d="M3 5.5h11M3 9.5h8M3 13.5h6" />
+    <path d="M13.5 15.5l3.4-3.4a1.7 1.7 0 012.4 2.4L16 18l-3.2.8z" opacity=".85" /></S>),
   /** the stacked-sheets mark everyone already reads as "layers" */
   layers: (<S size={17}><path d="M12 2.6L2.6 7.3 12 12l9.4-4.7z" />
     <path d="M2.6 12.2L12 16.9l9.4-4.7" opacity=".78" />
@@ -126,3 +129,24 @@ export const AMB_ICONS: ReactElement[] = [
   (<S key="f" size={15}><path d="M17.5 14.2A6.6 6.6 0 019.8 6.5a6.6 6.6 0 107.7 7.7z" />
     <path d="M17.5 4.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" opacity=".7" /></S>),
 ];
+
+/**
+ * Playback rates.
+ *
+ * A play button that only plays tells you nothing about how fast, and the time
+ * lapse is unwatchable at one speed — a full day at the slow rate takes about
+ * three minutes, which is too long to sit through, while the fast rate is too
+ * quick to read a shadow moving across a room. So the control becomes a rate
+ * selector the moment it starts, and the icons say what they do: one chevron
+ * per step up, in the language every video player already uses.
+ */
+export const RATE_ICON: ReactElement[] = [
+  (<S key="r0" size={14}><path d="M8 5.5l9 6.5-9 6.5z" /></S>),
+  (<S key="r1" size={14}><path d="M4 6l7 6-7 6z" /><path d="M13 6l7 6-7 6z" opacity=".85" /></S>),
+  (<S key="r2" size={14}><path d="M2 7l5 5-5 5z" /><path d="M9 7l5 5-5 5z" opacity=".85" />
+    <path d="M16 7l5 5-5 5z" opacity=".7" /></S>),
+  (<S key="r3" size={14}><path d="M2 7.5l4 4.5-4 4.5z" /><path d="M7.5 7.5l4 4.5-4 4.5z" opacity=".88" />
+    <path d="M13 7.5l4 4.5-4 4.5z" opacity=".76" /><path d="M20 5.5v13" opacity=".64" /></S>),
+];
+export const PAUSE_ICON: ReactElement = (
+  <S size={14}><path d="M9.5 5.5v13M14.5 5.5v13" strokeWidth="2.4" /></S>);
