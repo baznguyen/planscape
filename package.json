@@ -9,7 +9,8 @@
     "test": "node --test tests/*.mjs",
     "uat": "node tools/uat.mjs",
     "views": "node tools/views.mjs",
-    "check": "npm run build && node tools/uat.mjs && node tools/views.mjs"
+    "check": "npm run build && node tools/uat.mjs && node tools/views.mjs",
+    "setup": "npm install && npx playwright install chromium"
   },
   "dependencies": {
     "@react-three/drei": "9.108.4",
@@ -25,6 +26,7 @@
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/three": "0.160.0",
+    "playwright": "1.62.0",
     "typescript": "5.5.3"
   }
 }

@@ -19,6 +19,16 @@ fourth question: is the model faithful to the drawing?
 
 ---
 
+## Before any of it works
+
+```bash
+npm run setup      # npm install, then `npx playwright install chromium`
+```
+
+`views` and `uat` both drive a real browser. `npm install` fetches the Playwright
+package but not a browser binary, so a fresh clone fails on the first launch with
+an executable-not-found error rather than a test failure.
+
 ## `npm test` — solvers and standards
 
 ```bash

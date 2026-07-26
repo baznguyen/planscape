@@ -14,7 +14,7 @@ plan set is in [`samples/`](samples/).
 ## Run it
 
 ```bash
-npm install
+npm run setup                  # install + the chromium the test harnesses drive
 npm run dev                    # http://localhost:3000
 npm run build && npm start
 ```

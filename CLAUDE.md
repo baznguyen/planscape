@@ -37,6 +37,19 @@ metre is exactly 28.3465 PostScript points). `PLANS.md` explains the method.
 
 ---
 
+## First run
+
+```bash
+npm run setup     # npm install + the chromium build Playwright drives
+npm run dev       # http://localhost:3000
+pip install -r tools/requirements.txt   # only needed to change geometry
+```
+
+`npm run setup` rather than `npm install` because the UAT and screenshot
+harnesses need a browser binary, and `npm install` does not fetch one.
+
+---
+
 ## Before you commit
 
 ```bash
@@ -77,6 +90,13 @@ These have each cost an hour. They are not obvious.
 continuously, so the actionability check never settles. Use `boundingBox()` plus
 `page.mouse.click(x, y)` — `tools/uat.mjs` has a `tap()` helper that does this
 correctly, including scrolling a sheet before reading the box.
+
+**`NODE_ENV=production` in your shell will break the build in a way that points
+nowhere near the cause.** npm reads it, sets `omit=dev`, and skips
+devDependencies — so `typescript` never installs, Next cannot read
+`tsconfig.json`, the `@/*` path aliases stop resolving, and you get
+`Module not found: Can't resolve '@/components/Ui'`. The repo `.npmrc` sets
+`omit=` to neutralise it. If you still see it, check `npm config get omit`.
 
 **Never `pkill -f next`** in an agent shell — the pattern matches the agent's own
 shell and kills it. Use:
