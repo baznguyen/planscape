@@ -65,6 +65,11 @@ A changed view hash is a **question, not a failure**: open the PNG in
 `tools/views/`, confirm the change was intended, then re-baseline with
 `node tools/views.mjs --base` and commit the new `baseline.json`.
 
+The baseline is **machine-specific** — Chromium rasterises differently across
+platforms, so all nine will read as changed the first time you run it on a
+different OS. That is not a regression. Re-baseline once on your machine. The
+committed one was captured on macOS.
+
 Redline — the drafting review in `src/lib/review/draftingRules.ts` — runs inside
 the app, but you can run it from the shell:
 

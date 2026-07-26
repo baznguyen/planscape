@@ -69,6 +69,13 @@ lives in `tools/views/baseline.json` and is committed. The PNGs are gitignored.
 **A changed hash is a question, not a failure.** Open the PNG in `tools/views/`,
 decide whether the change was intended, then re-baseline.
 
+**The baseline is machine-specific.** Chromium rasterises text and geometry
+slightly differently across platforms and versions, so a baseline captured on
+Linux will report all nine views changed when run on macOS, and vice versa. It
+is not a regression — it is a different renderer. Re-baseline once on the
+machine that owns the repo and treat that as the reference; if this ever runs in
+CI, pin the image. The committed baseline was captured on macOS.
+
 This exists because street view renders a *different set of geometry* from walk
 and plan view — `interior` is false, so floors, walls, ceilings and furniture
 unmount. Every check that existed before it measured the 2D UI or the ground
