@@ -114,11 +114,31 @@ export const ROOMS: Room[] = [
   R('f_sit','Sitting Room',1,6.8,11.5,0.9,5.0,'living','carpet',['sofa','rug','tv','curtain'],2,{tour:true}),
   R('f_void','Void',1,6.8,11.5,5.2,10.1,'living','timberFloor',[],0,{void:true}),
   R('f_std','Study',1,11.7,15.0,0.9,5.0,'study','timberFloor',['desk','robe','curtain'],1,{tour:true}),
-  R('f_bd2','Bedroom 2',1,11.7,16.2,6.35,10.1,'bed','carpet',['bed','robe','desk','curtain'],1,{tour:true}),
-  R('f_wr2','WIR 2',1,16.4,18.4,6.35,7.9,'store','carpet',['robe']),
-  R('f_bth','Bathroom',1,16.4,19.0,7.9,10.1,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
-  R('f_bd4','Bedroom 4',1,19.2,25.9,6.35,10.1,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('f_lnd','Landing',1,13.0,21.5,5.0,6.35,'hall','timberFloor',[],0,{skylight:true}),
+  /**
+   * Bed 2 / Robe 2 / Bathroom / Linen / WIR 2 / Bed 4 — re-measured off SK1
+   * (vector wall pairing + a direct crop read, cross-checked against each
+   * other). The whole cluster was transcribed roughly 4 m too far west and
+   * with Bed4 swallowing what is actually Bath/Robe/WIR2/Linen's footprint;
+   * see the comment on f_hea below for why the old numbers were never
+   * trustworthy. Bed2's east wall (x 18.455), the Robe/Bath divider
+   * (x 19.06), Bath/Linen+WIR2 (x 21.0), Linen+WIR2/Bed4 (x 22.425) and
+   * Bed4's own east window wall AW2124 (x 26.42) are all high-confidence
+   * paired vector faces. The z=5.625 wall closing the south side of the
+   * whole cluster is the same one Redline's roofline/wall confusion was
+   * flagged against for Bed4/Principal Suite — here it is a real wall, not
+   * a roofline, confirmed by a clean paired face. North edge (z 9.42-9.51
+   * across the cluster) is a genuine small jog in the exterior wall,
+   * flattened here to 9.42 rather than modelled room-by-room — sub-100mm,
+   * not worth a notch per room. Study/Sitting/Void, west of x 15.4, are
+   * NOT part of this fix and are still the old, flagged-unreliable numbers.
+   */
+  R('f_bd2','Bedroom 2',1,15.40,18.455,5.625,9.42,'bed','carpet',['bed','robe','desk','curtain'],1,{tour:true}),
+  R('f_rob2','Robe 2',1,18.455,19.06,5.625,9.42,'store','carpet',['robe']),
+  R('f_bth','Bathroom',1,19.06,21.0,5.625,9.42,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
+  R('f_lnu','Linen',1,21.0,22.425,5.625,6.7,'store','carpet',[]),
+  R('f_wr2','WIR 2',1,21.0,22.425,6.7,9.42,'store','carpet',['robe']),
+  R('f_bd4','Bedroom 4',1,22.425,26.42,5.625,9.42,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('f_lnd','Landing',1,13.0,26.42,5.0,5.625,'hall','timberFloor',[],0,{skylight:true}),
   /**
    * The floor the flight actually arrives on. Once the stair was re-measured
    * onto its real line it climbed to first floor level at x 18,400 — and there
@@ -137,7 +157,9 @@ export const ROOMS: Room[] = [
   R('f_pri','Principal Suite',1,19.6,25.9,2.6,5.0,'bed','carpet',['bed','rug','curtain'],2,{tour:true}),
   R('f_wr1','WIR 1',1,19.6,21.6,0.9,2.4,'store','carpet',['robe']),
   R('f_ens','Ensuite',1,21.8,24.0,0.9,2.6,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
-  R('f_bal','Balcony',1,26.05,27.53,3.0,6.0,'outdoor','timberFloor',[],0,{outdoor:true,tour:true}),
+  // west edge moved 26.05 -> 26.42 to match fw_e2's corrected wall (see
+  // that wall's comment) — otherwise Bed4 and the balcony would overlap.
+  R('f_bal','Balcony',1,26.42,27.53,3.0,6.0,'outdoor','timberFloor',[],0,{outdoor:true,tour:true}),
 ];
 
 const W = (id:string,floor:0|1,x1:number,z1:number,x2:number,z2:number,mat:string,external:boolean,orient:Orient):Wall =>
@@ -217,23 +239,43 @@ export const WALLS: Wall[] = [
    */
   // first external shell
   W('fw_s',1,6.6,0.72,27.58,0.72,'renderClad',true,'S'),
-  W('fw_n',1,6.6,10.28,27.58,10.28,'renderClad',true,'N'),
+  // Split at x 15.4: west of it is Sitting Room/Void/Study, still the old
+  // unverified z 10.28 (see f_hea's comment — not resurveyed yet). East of
+  // it is the re-measured Bed2/Bath/WIR2/Bed4 cluster, whose real north wall
+  // is a paired face at z 9.42, not 10.28 — the 0.86 m gap was silently
+  // dropping every room here below generateWindows()'s 0.6 m offset
+  // tolerance, so none of them had a window at all.
+  W('fw_n',1,6.6,10.28,15.4,10.28,'renderClad',true,'N'),
+  W('fw_n2',1,15.4,9.42,26.42,9.42,'renderClad',true,'N'),
   W('fw_e1',1,27.58,0.72,27.58,3.0,'renderClad',true,'E'),
-  W('fw_e2',1,27.58,6.0,27.58,10.28,'renderClad',true,'E'),
+  // Re-measured with the Bed2/Bath/WIR2/Bed4 cluster below: AW2124's wall is
+  // a real, high-confidence paired face at x 26.42, not 27.58 — the old
+  // number left Bed4 a metre short of its own window. The balcony (f_bal)
+  // moves its west edge in to match, so the two rooms still meet cleanly.
+  W('fw_e2',1,26.42,5.625,26.42,9.42,'renderClad',true,'E'),
   W('fw_w',1,6.6,0.72,6.6,10.28,'renderClad',true,'W'),
   // first internal
   W('fi_1',1,25.95,0.72,25.95,5.0,'studWall',false,'E'),
-  W('fi_2',1,25.95,6.0,25.95,10.28,'studWall',false,'E'),
+  // fi_2 removed: it was Bed4's old (wrong) east wall at x 25.95, made
+  // redundant by fw_e2's correction to x 26.42 above — keeping both would
+  // have left a 0.47 m sliver wall inside the re-measured Bed4.
   W('fi_3',1,11.6,0.9,11.6,5.0,'studWall',false,'E'),
   W('fi_4',1,6.8,5.1,11.6,5.1,'studWall',false,'N'),
   W('fi_5',1,11.6,5.1,11.6,10.28,'studWall',false,'E'),
   W('fi_6',1,11.7,5.0,15.1,5.0,'studWall',false,'N'),
   W('fi_7',1,15.1,0.72,15.1,4.5,'studWall',false,'E'),
-  W('fi_8',1,16.3,6.35,16.3,10.28,'studWallAcoustic',false,'E'),
-  W('fi_9',1,16.3,7.9,19.1,7.9,'studWallAcoustic',false,'N'),
-  W('fi_10',1,19.1,7.9,19.1,10.28,'studWallAcoustic',false,'E'),
-  W('fi_11',1,13.0,6.35,21.5,6.35,'studWall',false,'N'),
-  W('fi_12',1,19.5,5.0,19.5,6.35,'studWall',false,'E'),
+  // fi_8/fi_9/fi_10/fi_17 repurposed for the re-measured cluster: Bed2/Robe2,
+  // Robe2/Bath, Bath/(Linen+WIR2), (Linen+WIR2)/Bed4 — same ids, real coords.
+  W('fi_8',1,18.455,5.625,18.455,9.42,'studWallAcoustic',false,'E'),
+  W('fi_9',1,19.06,5.625,19.06,9.42,'studWallAcoustic',false,'E'),
+  W('fi_10',1,21.0,5.625,21.0,9.42,'studWallAcoustic',false,'E'),
+  // Landing's north wall, extended to meet Bed4's real west/east extent —
+  // the whole cluster's south wall is this one paired face at z 5.625.
+  W('fi_11',1,13.0,5.625,26.42,5.625,'studWall',false,'N'),
+  // Linen/WIR2 internal divider — the one wall inside the cluster that is
+  // genuinely thin and short; still a paired face, not an inference.
+  W('fi_18',1,21.0,6.7,22.425,6.7,'studWall',false,'N'),
+  W('fi_12',1,19.5,5.0,19.5,5.625,'studWall',false,'E'),
   /**
    * NOT YET FIXED — flagged so the measurement isn't lost, not applied.
    * Currently one run x=19.5 to 25.95 at z=5.0, which the user reports as
@@ -256,7 +298,7 @@ export const WALLS: Wall[] = [
   W('fi_14',1,19.5,0.72,19.5,5.0,'studWallAcoustic',false,'E'),
   W('fi_15',1,19.6,2.45,21.7,2.45,'studWall',false,'N'),
   W('fi_16',1,21.7,0.72,21.7,2.45,'studWall',false,'E'),
-  W('fi_17',1,18.4,6.35,18.4,7.9,'studWall',false,'E'),
+  W('fi_17',1,22.425,5.625,22.425,9.42,'studWallAcoustic',false,'E'),
 ];
 
 export interface Stair {
@@ -367,10 +409,22 @@ export const OPENINGS: Opening[] = [
   O('d_bal',1,'fi_1',25.95,3.6,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri','f_bal','E'),
   O('d_f1',1,'fi_3',11.6,3.6,0.9,2.34,0,'door','doorSolid',0.9,'f_sit','f_std','E'),
   O('d_f2',1,'fi_6',13.4,5.0,0.9,2.34,0,'door','doorSolid',0.9,'f_std','f_lnd','N'),
-  O('d_f3',1,'fi_11',13.9,6.35,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd2','N'),
-  O('d_f4',1,'fi_9',17.6,7.9,0.8,2.34,0,'door','doorSolid',0.9,'f_wr2','f_bth','N'),
+  // d_f3/d_f6 moved onto fi_11's real position (z 5.625) and re-anchored to
+  // the re-measured Bed2/Bed4 — the old x's (13.9, 20.3) were inside the old
+  // wrong room footprints and land outside the real ones.
+  O('d_f3',1,'fi_11',17.76,5.625,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd2','N'),
+  // Bath's own entry, off Landing directly — a clean paired door swing on
+  // SK1, not inferred. Bath does not connect straight to WIR2; see d_f10.
+  O('d_f10',1,'fi_11',19.5,5.625,0.82,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bth','N'),
   O('d_f5',1,'fi_13',21.0,5.0,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_pri','N'),
-  O('d_f6',1,'fi_11',20.3,6.35,0.9,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd4','N'),
+  O('d_f6',1,'fi_11',23.5,5.625,0.82,2.34,0,'door','doorSolid',0.9,'f_lnd','f_bd4','N'),
+  // Linen's own "820" door, on the wall it actually shares — with Bath, not
+  // the landing. WIR2 has no door of its own onto Linen or Bath; it is only
+  // reached through Bed4 (d_f11 below).
+  O('d_f4',1,'fi_10',21.0,6.5,0.82,2.34,0,'door','doorSolid',0.9,'f_bth','f_lnu','E'),
+  // WIR2's "770" door, into Bed4 — the schedule-drawn connection; WIR2 is
+  // Bed4's private robe, not a shared one.
+  O('d_f11',1,'fi_17',22.425,8.3,0.77,2.34,0,'door','doorSolid',0.9,'f_wr2','f_bd4','E'),
   /**
    * fi_12 is a 1.35 m stub across the landing at x = 19,500. As drawn it sealed
    * the east end of the landing, which is the ONLY way into the primary suite,
@@ -381,10 +435,15 @@ export const OPENINGS: Opening[] = [
    * wide. INFERENCE, not a measured dimension: confirm against sheet SK1.
    * The walkability rule in draftingRules.ts is what found this.
    */
-  O('o_f12',1,'fi_12',19.5,5.7,1.2,2.34,0,'cased','doorSolid',1,'f_lnd','f_lnd','E'),
+  // z dropped from 5.7 to fit inside fi_12's shrunk span (Landing's north
+  // wall moved to z 5.625, see fi_11) — same 1.2 m INFERENCE opening as before.
+  O('o_f12',1,'fi_12',19.5,5.3,1.2,2.34,0,'cased','doorSolid',1,'f_lnd','f_lnd','E'),
   O('d_f7',1,'fi_16',21.7,1.6,0.7,2.34,0,'door','doorSolid',0.9,'f_wr1','f_ens','E'),
   O('d_f8',1,'fi_15',20.5,2.45,0.8,2.34,0,'door','doorSolid',0.9,'f_pri','f_wr1','N'),
-  O('d_f9',1,'fi_8',16.3,7.0,0.72,2.34,0,'door','doorSolid',0.9,'f_bd2','f_wr2','E'),
+  // Bed2/Robe2's "3 x MIRROR SL/DOORS OPENING @ 2770" — a wide sliding
+  // wardrobe front, not a hinged door; was wrongly modelled as a 0.72 m
+  // door straight into WIR2 (which is nowhere near Bed2 in the real plan).
+  O('d_f9',1,'fi_8',18.455,7.5,2.77,2.34,0,'cased','doorSolid',1,'f_bd2','f_rob2','E'),
 ];
 
 /**

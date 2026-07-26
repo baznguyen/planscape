@@ -65,9 +65,13 @@ main{position:fixed;inset:0}
  width:26px;height:22px;display:flex;align-items:center;justify-content:center;padding:0}
 .rates button.on{background:var(--ink);color:#fff}
 .openings{display:inline-flex;gap:1px;background:var(--sf);border:1px solid var(--ln);border-radius:99px;padding:1px;flex:none}
+/* .rates's pills are playback-rate labels, glanced at rather than pressed
+   often; these are pressed on every visit to open a window or run the air
+   con, so they get the same 36x34 target the mobile breakpoint already gave
+   them, everywhere, not just under the touch breakpoint. */
 .openings button{cursor:pointer;border:0;background:transparent;color:var(--ink3);border-radius:99px;
- width:26px;height:22px;display:flex;align-items:center;justify-content:center;padding:0}
-.openings button svg{width:14px;height:14px}
+ width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0}
+.openings button svg{width:16px;height:16px}
 .openings button.on{background:var(--ink);color:#fff}
 .sun select{border:0;background:transparent;font:inherit;font-weight:600;font-size:11px;width:52px;padding:0}
 .clock{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;min-width:42px}
@@ -824,5 +828,4 @@ main{position:fixed;inset:0}
   .sheetX{width:40px;height:40px}
   .play{width:36px;height:36px}
   .rates button{width:36px;height:34px}
-  .openings button{width:36px;height:34px}
 }

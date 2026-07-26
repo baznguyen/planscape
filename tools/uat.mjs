@@ -214,9 +214,10 @@ const SCENARIOS = [
   }},
 
   { name: 'openings', run: async (p, c) => {
-    await tap(p, '.railToggle');
-    const g = p.locator('.sheet.open .tileGrid').nth(1);
-    await tap(p, g.locator('.tile').nth(0));
+    // Open all / close all / air con live in the timelapse bar's `.openings`
+    // group now, not in a Sheet — see the comment on that group in Ui.tsx.
+    const g = p.locator('.openings');
+    await tap(p, g.locator('button').nth(0));
     /**
      * Assert against the model, not against a number I once observed.
      *
@@ -229,15 +230,14 @@ const SCENARIOS = [
     const opened = (await state(p)).openCount;
     c.is(opened, (await state(p)).openable, 'open all opens every openable thing');
     c.gt(opened, 10, 'and there are openings to open');
-    await tap(p, g.locator('.tile').nth(1));
+    await tap(p, g.locator('button').nth(1));
     const shut = await state(p);
     c.is(shut.openCount, shut.alwaysOpen,
       'close all closes everything that has a leaf to close');
-    await tap(p, g.locator('.tile').nth(2));
+    await tap(p, g.locator('button').nth(2));
     c.is((await state(p)).hvacOn, true, 'air conditioning toggles on');
-    await tap(p, g.locator('.tile').nth(2));
+    await tap(p, g.locator('button').nth(2));
     c.is((await state(p)).hvacOn, false, 'and off');
-    await closeSheet(p);
   }},
 
   { name: 'room-selection', run: async (p, c) => {
