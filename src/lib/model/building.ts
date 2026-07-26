@@ -76,7 +76,11 @@ export const ROOMS: Room[] = [
   R('g_liv','Living',0,6.7,11.7,5.6,9.33,'living','timberFloor',['sofa','sofa','rug','tv','curtain'],2,{tour:true,zone:'open'}),
   R('g_fam','Family & Dining',0,11.7,15.38,5.6,9.33,'living','timberFloor',['dining','sofa','rug','curtain'],3,{tour:true,zone:'open'}),
   R('g_mea','Meals',0,6.7,11.6,0.1,5.6,'living','timberFloor',['dining','sofa','curtain'],2,{tour:true,zone:'open'}),
-  R('g_kit','Kitchen',0,11.6,15.38,0.1,5.13,'kitchen','timberFloor',['island','fridge','oven','bench'],2,{tour:true,zone:'open'}),
+  // z1 was 5.13, short of the beam-over line at z 5.6 (b_open_ns, and the
+  // boundary every other open-plan room already shares) by 470 mm — nothing
+  // on the sheet marks a division at 5.13, and the strip between the two was
+  // simply unclaimed by any room.
+  R('g_kit','Kitchen',0,11.6,15.38,0.1,5.6,'kitchen','timberFloor',['island','fridge','oven','bench'],2,{tour:true,zone:'open'}),
   R('g_wip','Walk-in Pantry',0,15.38,17.58,0.39,2.99,'store','ceramicTile',['robe']),
   R('g_srv','Servery',0,15.38,17.58,2.99,5.13,'kitchen','timberFloor',['bench'],0,{zone:'open'}),
   R('g_pdr','Powder',0,15.38,17.94,7.33,9.33,'bath','ceramicTile',['bath']),
@@ -86,7 +90,7 @@ export const ROOMS: Room[] = [
   // laundry and the walk-in linen have to be entered through each other, which
   // is how the model ended up with a door from the garage into the WIL.
   R('g_lob','Laundry Lobby',0,19.00,20.09,5.13,7.33,'hall','ceramicTile',[]),
-  R('g_ldy','Laundry',0,17.94,20.04,7.33,10.74,'laundry','ceramicTile',['bath']),
+  R('g_ldy','Laundry',0,17.94,20.04,7.33,10.74,'laundry','ceramicTile',['laundry']),
   // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
   R('g_gar','Double Garage',0,20.09,25.93,5.13,10.81,'garage','slabOnGround',['car','car'],0,{tour:true}),
   R('g_gst','Guest Bedroom',0,17.9,21.54,0.39,3.00,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
@@ -167,7 +171,10 @@ export const WALLS: Wall[] = [
   W('gi_9',0,18.40,3.00,23.44,3.00,'studWall',false,'N'),
   W('gi_9b',0,23.44,3.53,25.93,3.53,'studWall',false,'N'),
   W('gi_9c',0,23.44,0.39,23.44,3.53,'studWall',false,'E'),
-  W('gi_10',0,20.09,5.13,20.09,11,'studWallAcoustic',false,'E'),
+  // Re-measured: the paired faces (x 20.04/20.13) both terminate at z 10.90,
+  // matching gw_n3 — modelled to z 11 it overshot the garage's NW corner by
+  // 100 mm, reading as a wall stub sticking past the building line.
+  W('gi_10',0,20.09,5.13,20.09,10.90,'studWallAcoustic',false,'E'),
   W('gi_11',0,15.38,7.33,20.04,7.33,'studWall',false,'N'),
   
   W('gi_12',0,20.09,5.13,25.93,5.13,'studWallAcoustic',false,'N'),

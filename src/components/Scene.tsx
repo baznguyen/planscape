@@ -16,6 +16,7 @@ import { kelvinToRgb, beamPool } from '@/lib/solvers/lighting';
 import { WIND } from '@/lib/solvers/airflow';
 import Furniture from './Furniture';
 import Exterior, { Garden } from './Exterior';
+import Roof from './Roof';
 import PlanOverlay, { Beams } from './PlanOverlay';
 import PlanSheet from './PlanSheet';
 import Notations from './Notations';
@@ -668,7 +669,14 @@ export default function Scene() {
           <circleGeometry args={[34, 96]} /><meshStandardMaterial color="#dfe6d4" />
         </mesh>
       )}
+      {/* The "Roof & ceilings" toggle used to only gate the flat Ceilings() slab —
+          the real pitched roof only ever rendered in street view (Exterior's
+          own <Roof/>, gated on view==='street'), so the default overview camera
+          showed a roofless block. Wiring it here too needs no extra camera-
+          height logic: inside a room the current floor's own Ceilings() already
+          occludes it, same as it always has. */}
       {interior && <><Floors /><Walls /><Ceilings /><Openings /><Beams /><Furniture /><Garden /><Placed /></>}
+      {interior && showRoof && <Roof />}
       <Exterior />
       <ThermalLabels />
       <Dimensions />

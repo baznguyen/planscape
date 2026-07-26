@@ -3,8 +3,8 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Edges } from '@react-three/drei';
 import { ROOMS, GEOM, STAIRS, ALL_OPENINGS, roomHeight, roomCentre, type Room } from '@/lib/model/building';
-import { doorZones, blockedFraction } from '@/lib/model/clearance';
-import { anchorOk, foot, glazingFor, nudgeInside } from '@/lib/model/fitout';
+import { doorZones, blockedFraction, overlaps } from '@/lib/model/clearance';
+import { anchorOk, foot, glazingFor, nudgeInside, type Foot } from '@/lib/model/fitout';
 import { useStore } from '@/store/useStore';
 
 const y0 = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
@@ -115,7 +115,13 @@ const Oven = () => (<group>
   <B w={0.55} h={0.5} d={0.05} c={C.black} p={[0,1.15,-0.28]} edge={false}/>
   <B w={0.55} h={0.34} d={0.05} c={C.black} p={[0,1.6,-0.28]} edge={false}/>
 </group>);
-const Bathroom = () => (<group>
+/** Recessed pan behind a glass screen — only the rooms that actually have one get it. */
+const Shower = () => (<group>
+  <B w={0.9} h={0.03} d={0.9} c={C.stone} p={[0,0.015,0]}/>
+  <B w={0.9} h={2.0} d={0.03} c={C.glass} p={[0,1.0,-0.44]} edge={false}/>
+  <B w={0.03} h={2.0} d={0.9} c={C.glass} p={[-0.44,1.0,0]} edge={false}/>
+</group>);
+const Bathroom = ({ shower = false }: { shower?: boolean }) => (<group>
   <B w={0.38} h={0.4} d={0.6} c={C.light} p={[0,0.2,0.05]}/>
   <Cyl r1={0.19} r2={0.19} h={0.06} c={C.light} p={[0,0.42,0.1]}/>
   <B w={0.4} h={0.5} d={0.16} c={C.light} p={[0,0.55,-0.24]}/>
@@ -124,6 +130,13 @@ const Bathroom = () => (<group>
     <B w={1.13} h={0.05} d={0.54} c={C.stone} p={[0,0.87,0]}/>
     <B w={0.36} h={0.06} d={0.28} c={C.light} p={[0,0.92,0]} edge={false}/>
     <B w={0.9} h={0.9} d={0.04} c={C.glass} p={[0,1.55,-0.24]} edge={false}/></group>
+  {shower && <group position={[1.95,0,0]}><Shower/></group>}
+</group>);
+/** A trough plus stacked washer/dryer — not a toilet-and-vanity fit-out. */
+const LaundryFixture = () => (<group>
+  <B w={0.6} h={0.9} d={0.55} c={C.light} p={[0,0.45,0]}/>
+  <Cyl r1={0.22} r2={0.22} h={0.05} c={C.metal} p={[0,0.93,0]}/>
+  {[0.75, 1.5].map((x, i) => (<B key={i} w={0.6} h={0.85} d={0.6} c={C.metal} p={[x,0.43,0]}/>))}
 </group>);
 const Car = () => (<group>
   <B w={1.85} h={0.62} d={4.4} c={C.dark} p={[0,0.55,0]}/>
@@ -165,17 +178,31 @@ function layout(r: Room): Item[] {
   const f = r.fixtures;
   const along = w >= d;
   const zones = doorZones(r.floor);
+  /** Every piece placed so far, for the pieces below that ask not to overlap one. */
+  const placedFeet: Foot[] = [];
   /**
    * Nothing may stand in a door's swing. Anchors are tried in order and the
    * first clear one wins; if a piece cannot be placed clear anywhere it is
    * dropped rather than left blocking the door. The same zones are what the
    * reviewer checks against, so a regression here shows up as a finding.
+   *
+   * `avoid: true` also rejects a candidate that overlaps a piece already
+   * placed in this room — the sofa/TV/dining rearrangement below needs it so
+   * a dining table can no longer land on top of the lounge it does not know
+   * about (see the `add` note below for why the old placement could not
+   * catch this at all).
    */
   const place = (el: JSX.Element, cands: [number, number, number][], fw: number, fd: number,
-                 opts: { needsWall?: boolean } = {}) => {
+                 opts: { needsWall?: boolean; avoid?: boolean } = {}): { x: number; z: number; ry: number } | null => {
     for (const [x, z, ry] of cands) {
-      if (anchorOk(x, z, fw, fd, ry, r, opts)) { out.push({ el, x, z, ry }); return; }
+      if (!anchorOk(x, z, fw, fd, ry, r, { needsWall: opts.needsWall })) continue;
+      const foot_ = foot(x, z, fw, fd, ry);
+      if (opts.avoid && placedFeet.some(o => overlaps(foot_, o))) continue;
+      out.push({ el, x, z, ry });
+      placedFeet.push(foot_);
+      return { x, z, ry };
     }
+    return null;
   };
   /**
    * Put a piece down, sliding it back inside the room if the anchor arithmetic
@@ -183,34 +210,64 @@ function layout(r: Room): Item[] {
    *
    * The old `add` wrote straight to the output with no test of any kind, which
    * is how a car came to project three quarters of a metre through a shut
-   * garage door. Nothing sticks out of a room now — if it does not fit, it is
-   * not drawn, and the reviewer says so.
+   * garage door, and — before `avoid` existed — how a dining table ended up on
+   * top of a lounge: `sofa`/`tv`/`dining` all went through `add`, so nothing
+   * ever checked one against another. Nothing sticks out of a room now, and
+   * nothing placed with `avoid: true` sits on top of an earlier piece either.
    */
   const put = (el: JSX.Element, x: number, z: number, fw: number, fd: number, ry = 0,
-               opts: { needsWall?: boolean } = {}) => {
+               opts: { needsWall?: boolean; avoid?: boolean } = {}): { x: number; z: number; ry: number } | null => {
     const n = nudgeInside(x, z, fw, fd, ry, r);
-    if (!n) return;
-    if (opts.needsWall && !anchorOk(n.x, n.z, fw, fd, ry, r, opts)) return;
-    if (blockedFraction(foot(n.x, n.z, fw, fd, ry), zones) >= 0.06) return;
+    if (!n) return null;
+    if (opts.needsWall && !anchorOk(n.x, n.z, fw, fd, ry, r, opts)) return null;
+    const foot_ = foot(n.x, n.z, fw, fd, ry);
+    if (opts.avoid && placedFeet.some(o => overlaps(foot_, o))) return null;
+    if (blockedFraction(foot_, zones) >= 0.06) return null;
     out.push({ el, x: n.x, z: n.z, ry });
+    placedFeet.push(foot_);
+    return { x: n.x, z: n.z, ry };
   };
-  /** Rugs and other floor coverings: no clearance rules, but still inside. */
+  /** Rugs and curtains: legitimately sit under/flush with other furniture. */
   const add = (el: JSX.Element, x: number, z: number, ry = 0) => out.push({ el, x, z, ry });
   if (f.includes('rug')) add(<Rug w={Math.min(3.2,w*0.6)} d={Math.min(2.4,d*0.55)}/>, c.x, c.z);
+  /**
+   * TV goes down first, wall-anchored, so it can no longer float with nothing
+   * behind it. The sofa then faces wherever it actually landed instead of an
+   * independent guess that happened to usually agree.
+   */
+  const tv = f.includes('tv')
+    ? put(<Tv size={r.use==='living'?65:55}/>, along?c.x:r.x1-0.35, along?r.z0+0.35:c.z, 1.9, 0.42,
+        along?0:-Math.PI/2, { needsWall: true, avoid: true })
+    : null;
   const sofas = f.filter(x => x === 'sofa').length;
   if (sofas) {
-    add(<Sofa len={Math.min(2.6, (along?w:d)*0.5)}/>, along?c.x:r.x0+0.75, along?r.z1-0.75:c.z, along?Math.PI:Math.PI/2);
-    if (sofas > 1) add(<Sofa len={Math.min(2.0,(along?w:d)*0.4)}/>, along?r.x0+0.8:c.x, along?c.z:r.z0+0.8, along?Math.PI/2:0);
+    const sofaRy = tv ? tv.ry + Math.PI : (along?Math.PI:Math.PI/2);
+    const len1 = Math.min(2.6, (along?w:d)*0.5);
+    put(<Sofa len={len1}/>, along?c.x:r.x0+0.75, along?r.z1-0.75:c.z, len1, 0.9, sofaRy, { avoid: true });
+    if (sofas > 1) {
+      const len2 = Math.min(2.0,(along?w:d)*0.4);
+      put(<Sofa len={len2}/>, along?r.x0+0.8:c.x, along?c.z:r.z0+0.8, len2, 0.9, along?Math.PI/2:0, { avoid: true });
+    }
   }
-  if (f.includes('tv')) add(<Tv size={r.use==='living'?65:55}/>, along?c.x:r.x1-0.35, along?r.z0+0.35:c.z, along?0:-Math.PI/2);
-  if (f.includes('dining')) add(<Dining len={Math.min(2.2, (along?w:d)*0.45)}/>,
-    along?c.x+w*0.18:c.x, along?c.z:c.z+d*0.18, along?0:Math.PI/2);
+  if (f.includes('dining')) {
+    const dLen = Math.min(2.2, (along?w:d)*0.45);
+    put(<Dining len={dLen}/>, along?c.x+w*0.18:c.x, along?c.z:c.z+d*0.18, dLen, 1.2,
+      along?0:Math.PI/2, { avoid: true });
+  }
   if (f.includes('bed')) {
     const bw = r.id === 'f_pri' ? 1.8 : 1.5;
     place(<Bed w={bw}/>, [[c.x, c.z+0.25, 0], [c.x, c.z-0.25, 0],
       [c.x, r.z1-1.2, 0], [c.x, r.z0+1.2, 0], [c.x, c.z, 0]], bw, 2.1);
   }
-  if (f.includes('robe')) {
+  /**
+   * A bedroom shows just a bed for context — the wardrobe is real (the
+   * fixture schedule still carries it, since that is what the drawing says
+   * is there), but rendering it made every bedroom read as furnished cabinetry
+   * rather than "here is where the bed goes." Dedicated robe/WIR rooms
+   * (`use: 'store'`) still get theirs — a walk-in robe with no robe in it
+   * would render as an empty box.
+   */
+  if (f.includes('robe') && r.use !== 'bed') {
     const rl = Math.min(1.9, (along ? w : d) * 0.55);
     place(<Robe len={rl}/>, [
       [along ? c.x : r.x1 - 0.35, along ? r.z1 - 0.35 : c.z, along ? Math.PI : -Math.PI / 2],
@@ -226,7 +283,6 @@ function layout(r: Room): Item[] {
     [r.x0+0.8, r.z0+0.6, -Math.PI/2], [r.x1-0.8, r.z1-0.6, Math.PI/2]], 1.4, 0.7);
   if (f.includes('fridge')) place(<Fridge/>, [
     [r.x1-0.6, r.z0+0.5, 0], [r.x0+0.6, r.z0+0.5, 0], [r.x1-0.6, r.z1-0.5, 0]], 0.8, 0.75);
-  if (f.includes('oven')) put(<Oven/>, r.x0+0.45, r.z0+0.4, 0.65, 0.6);
   /**
    * Kitchen joinery follows the fixture schedule, not the room's use.
    *
@@ -239,16 +295,48 @@ function layout(r: Room): Item[] {
    */
   if (f.includes('island')) put(<Island len={Math.min(2.8,w*0.6)}/>, c.x, c.z+1.0,
     Math.min(2.8,w*0.6), 1.0);
+  let benchAnchor: { x: number; z: number; ry: number } | null = null;
   if (f.includes('bench')) {
     const bl = Math.min(r.use === 'kitchen' ? 4.0 : 1.9, (along ? w : d) * 0.8);
-    // against a wall, back to it — a bench run floating in a room is joinery
-    // nobody could plumb
-    place(<Bench len={bl} uppers={r.use === 'kitchen'}/>, [
+    const cands: [number, number, number][] = [
       [c.x, r.z0 + 0.35, 0], [c.x, r.z1 - 0.35, Math.PI],
       [r.x0 + 0.35, c.z, Math.PI / 2], [r.x1 - 0.35, c.z, -Math.PI / 2],
-    ], bl, 0.7, { needsWall: true });
+    ];
+    /**
+     * A bench belongs under the light, the way a draftsperson places it — not
+     * wherever the fixed S/N/W/E candidate order happens to try first. Sort
+     * the candidates so a wall this room actually has glazing on is tried
+     * before the others, falling back to the original order if it has none
+     * (the servery fronts no external wall at all).
+     */
+    const orientOf = (ry: number): 'N' | 'S' | 'E' | 'W' =>
+      ry === 0 ? 'S' : ry === Math.PI ? 'N' : ry === Math.PI / 2 ? 'W' : 'E';
+    const glazed = new Set(glazingFor(r).map(o => o.orient));
+    const ranked = [...cands].sort((a, b) =>
+      (glazed.has(orientOf(a[2])) ? 0 : 1) - (glazed.has(orientOf(b[2])) ? 0 : 1));
+    // against a wall, back to it — a bench run floating in a room is joinery
+    // nobody could plumb
+    benchAnchor = place(<Bench len={bl} uppers={r.use === 'kitchen'}/>, ranked, bl, 0.7, { needsWall: true });
   }
-  if (f.includes('bath')) put(<Bathroom/>, r.x0+0.55, r.z0+0.45, 2.2, 0.9);
+  if (f.includes('oven')) {
+    if (r.use === 'kitchen' && benchAnchor) {
+      // the oven sits within the bench run it belongs to, not on a wall the
+      // bench never reached — same wall standoff, offset 1 m along the bench
+      const alongBench = benchAnchor.ry === 0 || benchAnchor.ry === Math.PI;
+      const ox = benchAnchor.x + (alongBench ? 1.0 : 0);
+      const oz = benchAnchor.z + (alongBench ? 0 : 1.0);
+      put(<Oven/>, ox, oz, 0.65, 0.6, 0, { avoid: true });
+    } else {
+      put(<Oven/>, r.x0+0.45, r.z0+0.4, 0.65, 0.6);
+    }
+  }
+  if (f.includes('bath')) {
+    // Powder is a toilet-and-vanity room by definition; every other bath-use
+    // room (Ensuite, Bathroom) gets the shower too.
+    const showered = r.use === 'bath' && !r.name.includes('Powder');
+    put(<Bathroom shower={showered}/>, r.x0+0.55, r.z0+0.45, showered ? 3.2 : 2.2, 0.9);
+  }
+  if (f.includes('laundry')) put(<LaundryFixture/>, r.x0+0.5, r.z0+0.4, 2.4, 0.9);
   /**
    * Cars sit side by side across the garage door, not nose to tail.
    *

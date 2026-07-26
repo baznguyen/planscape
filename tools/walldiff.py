@@ -26,8 +26,6 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# (page index, pdf x of model x=0, pdf y of model z=0)
-REGISTRATION = {0: (1, 172.60, 593.10), 1: (2, 166.67, 568.67)}
 WINDOW = (-2, 30, -2, 13)
 
 
@@ -72,7 +70,7 @@ def main() -> int:
     doc = fitz.open(a.pdf)
     walls = model_walls(a.model)
     worst_seen = 0.0
-    for floor, (page, ox, oz) in REGISTRATION.items():
+    for floor, (page, ox, oz) in pw.REGISTRATION.items():
         if a.floor is not None and floor != a.floor:
             continue
         H, V = pw.schedule(doc[page], ox, oz, WINDOW)

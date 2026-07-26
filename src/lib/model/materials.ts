@@ -101,6 +101,7 @@ export const FIXTURES: Record<string, Fixture> = {
   dining: {id:'dining', label:'Dining setting',   A:{125:0.25,500:0.45,2000:0.55}, rfDb:1,   blocksAir:true,  gainW:0},
   desk:   {id:'desk',   label:'Desk + chair',     A:{125:0.18,500:0.30,2000:0.38}, rfDb:1,   blocksAir:true,  gainW:80},
   bath:   {id:'bath',   label:'Bath / sanitary',  A:{125:0.02,500:0.02,2000:0.03}, rfDb:2,   blocksAir:true,  gainW:0},
+  laundry:{id:'laundry',label:'Trough + washer/dryer', A:{125:0.15,500:0.25,2000:0.30}, rfDb:6, blocksAir:true, gainW:50},
   car:    {id:'car',    label:'Car',              A:{125:0.30,500:0.40,2000:0.45}, rfDb:12,  blocksAir:true,  gainW:0},
   person: {id:'person', label:'Occupant',         A:{125:0.25,500:0.42,2000:0.46}, rfDb:3,   blocksAir:false, gainW:75},
 };

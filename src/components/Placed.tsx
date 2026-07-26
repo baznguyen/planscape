@@ -107,7 +107,15 @@ function Pendant({ drop }: { drop: number }) {
     </group>
   );
 }
-function FloorLamp({ h }: { h: number }) {
+/**
+ * Downlight and Pendant are always-lit fittings with no `on` state to read —
+ * fine for a catalogue swatch, wrong for a lamp a user switches. Floor and
+ * table lamps DO carry a real `.on` (the thermal gain calc already reads it,
+ * `useStore.ts`'s `ctxOf`), so the shade should glow only when it is true —
+ * mirroring PanelHeater/RadiantHeater's existing on/off pattern, not
+ * Downlight/Pendant's always-on one.
+ */
+function FloorLamp({ h, on }: { h: number; on: boolean }) {
   return (
     <group>
       <mesh position={[0, -h / 2 + 0.01, 0]}><cylinderGeometry args={[0.17, 0.18, 0.02, 20]} />
@@ -115,11 +123,13 @@ function FloorLamp({ h }: { h: number }) {
       <mesh><cylinderGeometry args={[0.012, 0.012, h, 10]} />
         <meshStandardMaterial color="#6d747b" metalness={0.5} roughness={0.35} /></mesh>
       <mesh position={[0, h / 2 - 0.09, 0]}><coneGeometry args={[0.17, 0.22, 22, 1, true]} />
-        <meshStandardMaterial color="#efe9dd" side={THREE.DoubleSide} /></mesh>
+        <meshStandardMaterial color="#efe9dd" side={THREE.DoubleSide}
+          emissive={on ? '#ffdf9e' : '#000000'} emissiveIntensity={on ? 0.9 : 0} /></mesh>
+      {on && <pointLight color="#ffdf9e" intensity={0.6} distance={3.5} position={[0, h / 2 - 0.09, 0]} />}
     </group>
   );
 }
-function TableLamp({ h }: { h: number }) {
+function TableLamp({ h, on }: { h: number; on: boolean }) {
   return (
     <group>
       <mesh position={[0, -h / 2 + 0.02, 0]}><cylinderGeometry args={[0.09, 0.1, 0.04, 16]} />
@@ -127,7 +137,9 @@ function TableLamp({ h }: { h: number }) {
       <mesh><cylinderGeometry args={[0.014, 0.014, h * 0.6, 10]} />
         <meshStandardMaterial color="#7d848c" /></mesh>
       <mesh position={[0, h / 2 - 0.08, 0]}><coneGeometry args={[0.13, 0.18, 18, 1, true]} />
-        <meshStandardMaterial color="#f2ece1" side={THREE.DoubleSide} /></mesh>
+        <meshStandardMaterial color="#f2ece1" side={THREE.DoubleSide}
+          emissive={on ? '#ffdf9e' : '#000000'} emissiveIntensity={on ? 0.9 : 0} /></mesh>
+      {on && <pointLight color="#ffdf9e" intensity={0.4} distance={2.5} position={[0, h / 2 - 0.08, 0]} />}
     </group>
   );
 }
@@ -206,8 +218,8 @@ function AssetMesh({ assetId, on }: { assetId: string; on: boolean }) {
     case 'dl_wide':
     case 'dl_narrow': return <Downlight recessed />;
     case 'pendant': return <Pendant drop={spec.dropM ?? 1.6} />;
-    case 'lamp_floor': return <FloorLamp h={h} />;
-    case 'lamp_table': return <TableLamp h={h} />;
+    case 'lamp_floor': return <FloorLamp h={h} on={on} />;
+    case 'lamp_table': return <TableLamp h={h} on={on} />;
     case 'ap_ceiling': return <Ap wall={false} />;
     case 'ap_wall': return <Ap wall />;
     case 'heater_panel': return <PanelHeater on={on} w={w} h={h} d={d} />;

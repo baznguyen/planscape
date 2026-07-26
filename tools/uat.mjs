@@ -200,7 +200,7 @@ const SCENARIOS = [
   { name: 'overlays', mobile: true, run: async (p, c) => {
     await tap(p, '.railToggle');
     const n = await p.locator('.sheet.open .tileGrid').first().locator('.tile').count();
-    c.is(n, 8, 'eight overlay toggles');
+    c.is(n, 9, 'nine overlay toggles');
     for (let i = 0; i < n; i++) {
       const tile = p.locator('.sheet.open .tileGrid').first().locator('.tile').nth(i);
       const label = (await tile.innerText()).trim().replace(/\s+/g, ' ');
@@ -264,7 +264,7 @@ const SCENARIOS = [
     c.gt(after.counts.speakers, before.speakers, 'A SPEAKER WAS ADDED');
   }},
 
-  { name: 'place-downlight', run: async (p, c) => {
+  { name: 'place-downlight', mobile: true, run: async (p, c) => {
     const before = (await state(p)).counts;
     await openTools(p);
     await tab(p, 'Add');
@@ -276,7 +276,7 @@ const SCENARIOS = [
     c.gt(after.counts.lights, before.lights, 'A DOWNLIGHT WAS ADDED');
   }},
 
-  { name: 'place-heater', run: async (p, c) => {
+  { name: 'place-heater', mobile: true, run: async (p, c) => {
     const before = (await state(p)).counts;
     await openTools(p);
     await tab(p, 'Add');
@@ -287,7 +287,7 @@ const SCENARIOS = [
     c.gt(after.counts.items, before.items, 'A HEATER WAS ADDED');
   }},
 
-  { name: 'place-ap', run: async (p, c) => {
+  { name: 'place-ap', mobile: true, run: async (p, c) => {
     const before = (await state(p)).counts;
     await openTools(p);
     await tab(p, 'Add');

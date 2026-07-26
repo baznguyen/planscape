@@ -183,6 +183,56 @@ function danglingWalls(): RuleFinding[] {
   return out;
 }
 
+/**
+ * A void or an outdoor space is drawn to be open on at least one side — that
+ * is the entire point of flagging a room `void` or `outdoor` instead of
+ * giving it four walls like every other room. Nothing else here catches a
+ * balcony modelled as fully enclosed: `overlappingRooms`/`wallsToScale` skip
+ * void rooms outright, and `danglingWalls` treats a wall meeting a room edge
+ * as correct regardless of whether that room should have been open there.
+ */
+function voidsAreOpen(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  const edgeCovered = (floor: 0 | 1, axis: 'h' | 'v', at: number, lo: number, hi: number) =>
+    WALLS.some(w => {
+      if (w.floor !== floor) return false;
+      const wHoriz = Math.abs(w.z1 - w.z2) < 1e-6;
+      if ((axis === 'h') !== wHoriz) return false;
+      const wAt = wHoriz ? w.z1 : w.x1;
+      if (Math.abs(wAt - at) > 0.15) return false;
+      const wLo = wHoriz ? Math.min(w.x1, w.x2) : Math.min(w.z1, w.z2);
+      const wHi = wHoriz ? Math.max(w.x1, w.x2) : Math.max(w.z1, w.z2);
+      return Math.max(0, Math.min(hi, wHi) - Math.max(lo, wLo)) > 0.6 * (hi - lo);
+    });
+  for (const r of ROOMS) {
+    if (!r.void && !r.outdoor) continue;
+    const edges = [
+      edgeCovered(r.floor, 'v', r.x0, r.z0, r.z1),
+      edgeCovered(r.floor, 'v', r.x1, r.z0, r.z1),
+      edgeCovered(r.floor, 'h', r.z0, r.x0, r.x1),
+      edgeCovered(r.floor, 'h', r.z1, r.x0, r.x1),
+    ];
+    if (edges.every(Boolean)) {
+      out.push({
+        rule: 'geometry/void-enclosed', severity: 'major',
+        title: `${r.name} is fully walled in`,
+        detail: `${r.name} is modelled ${r.void ? 'void' : 'outdoor'} — open to the space beside or below it — but a wall runs along all four of its edges, which draws it as an enclosed room instead of the open one the plan intends.`,
+        authority: 'Drafting convention — a void or an outdoor space is bounded by air on at least one side',
+        subject: r.id,
+      });
+    }
+  }
+  if (!out.length) {
+    out.push({
+      rule: 'geometry/void-enclosed', severity: 'pass',
+      title: 'Every void and outdoor space has an open side',
+      detail: 'No room flagged void or outdoor is walled in on all four edges.',
+      authority: 'Drafting convention — a void or an outdoor space is bounded by air on at least one side',
+    });
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ *
  * 2. Habitability — the checks a certifier makes
  * ------------------------------------------------------------------ */
@@ -717,6 +767,7 @@ export function runDraftingRules(): RuleFinding[] {
     ...overlappingRooms(),
     ...openingsAreAttached(),
     ...danglingWalls(),
+    ...voidsAreOpen(),
     ...beamsAreNotWalls(),
     ...stairGeometry(),
     ...naturalLight(),

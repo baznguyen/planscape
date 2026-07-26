@@ -22,14 +22,23 @@ Filtering, in order:
     python3 tools/plannotes.py samples/SK1.pdf > src/lib/model/planNotes.ts
 """
 import argparse
+import importlib.util
 import json
+import os
 import re
 import sys
 
+HERE = os.path.dirname(os.path.abspath(__file__))
 PT_PER_M = 28.3465
-# (page index, origin x, origin y) per floor — see PLANS.md
-REGISTRATION = {0: (1, 172.60, 593.10), 1: (2, 166.67, 568.67)}
 ENVELOPE = (-1.0, 29.0, -1.0, 12.0)
+
+
+def _registration():
+    """REGISTRATION lives in planwalls.py — the one place per-floor page/origin is defined."""
+    spec = importlib.util.spec_from_file_location('pw', os.path.join(HERE, 'planwalls.py'))
+    pw = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pw)
+    return pw.REGISTRATION
 
 ROOM_WORDS = {
     'LIVING', 'KITCHEN', 'FAMILY', 'DINING', 'MEALS', 'ALFRESCO', 'PANTRY', 'WIP',
@@ -63,7 +72,7 @@ def notes(pdf):
     doc = fitz.open(pdf)
     x0e, x1e, z0e, z1e = ENVELOPE
     out = []
-    for floor, (page, ox, oz) in REGISTRATION.items():
+    for floor, (page, ox, oz) in _registration().items():
         for b in doc[page].get_text('blocks'):
             text = ' '.join(b[4].split())
             if len(text) < 4:

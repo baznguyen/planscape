@@ -50,6 +50,9 @@ a wall, with the span it covers. Gaps in a span are doorways.
 import argparse, sys
 
 PT_PER_M = 28.3465          # 1:100 — one metre is one centimetre of paper
+# (page index, pdf x of model x=0, pdf y of model z=0) per floor — see PLANS.md.
+# Also the source of truth for walldiff.py/plannotes.py's copies of this dict.
+REGISTRATION = {0: (1, 172.60, 593.10), 1: (2, 166.67, 568.67)}
 
 
 def segments(page):
@@ -99,11 +102,13 @@ def schedule(page, ox, oz, win, s=PT_PER_M, tol=0.3, run=2.5):
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('pdf')
-    p.add_argument('--page', type=int, required=True, help='0-based page index')
-    p.add_argument('--ox', type=float, required=True, help='pdf x of model x=0, in points')
-    p.add_argument('--oz', type=float, required=True, help='pdf y of model z=0, in points')
+    p.add_argument('--page', type=int, help='0-based page index')
+    p.add_argument('--ox', type=float, help='pdf x of model x=0, in points')
+    p.add_argument('--oz', type=float, help='pdf y of model z=0, in points')
     p.add_argument('--scale', type=float, default=PT_PER_M, help='points per metre')
     p.add_argument('--window', default='0,30,0,12', help='x0,x1,z0,z1 in metres')
+    p.add_argument('--ts', action='store_true',
+                    help='emit src/lib/model/sheetLines.ts (all floors, via REGISTRATION) instead of a schedule')
     a = p.parse_args()
     try:
         import fitz                                   # PyMuPDF, local tooling only
@@ -111,6 +116,13 @@ def main() -> int:
         print('needs PyMuPDF: pip install --break-system-packages pymupdf', file=sys.stderr)
         return 1
     win = tuple(float(v) for v in a.window.split(','))
+    if a.ts:
+        body, n = emit_ts(a.pdf, REGISTRATION, win)
+        print(body, end='')
+        print(f'// {n} sheet lines', file=sys.stderr)
+        return 0
+    if a.page is None or a.ox is None or a.oz is None:
+        p.error('--page, --ox and --oz are required unless --ts is given')
     H, V = schedule(fitz.open(a.pdf)[a.page], a.ox, a.oz, win, a.scale)
     print('# walls running east-west   (z : x spans; a gap in a span is a doorway)')
     for z in sorted(H):
@@ -119,10 +131,6 @@ def main() -> int:
     for x in sorted(V):
         print(f'  x={x:6.2f}  {V[x]}')
     return 0
-
-
-if __name__ == '__main__':
-    raise SystemExit(main())
 
 
 # ---------------------------------------------------------------------------
@@ -207,3 +215,7 @@ def emit_ts(pdf, registration, window):
     import json
     body = ',\n  '.join(json.dumps(r) for r in rows)
     return TS_HEAD + '[\n  ' + body + ',\n];\n', len(rows)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

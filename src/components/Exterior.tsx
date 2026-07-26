@@ -11,10 +11,10 @@ const M = { brick:'#e6d9c8', render:'#f2efe8', clad:'#e2ddd2', roof:'#b9bec3', w
   glass:'#bfe0ec', metal:'#cfd2d5', grass:'#9cc76f', road:'#b0b3b6', path:'#d6d3cb',
   bed:'#8a7a52', hedge:'#74ab55', trunk:'#b59a74', water:'#5bb4d0', ghost:'#ccd1d6' };
 
-const Box = ({ w,h,d,c,p,r,info,edge=true,soft=false }:
-  { w:number;h:number;d:number;c:string;p:[number,number,number];r?:[number,number,number];info?:string;edge?:boolean;soft?:boolean }) => (
+const Box = ({ w,h,d,c,p,r,info,edge=true,soft=false,transparent=false,opacity=1 }:
+  { w:number;h:number;d:number;c:string;p:[number,number,number];r?:[number,number,number];info?:string;edge?:boolean;soft?:boolean;transparent?:boolean;opacity?:number }) => (
   <mesh position={p} rotation={r} castShadow receiveShadow userData={info?{info}:undefined}>
-    <boxGeometry args={[w,h,d]}/><meshStandardMaterial color={c} roughness={0.85}/>
+    <boxGeometry args={[w,h,d]}/><meshStandardMaterial color={c} roughness={0.85} transparent={transparent} opacity={opacity}/>
     {edge && <Edges color={soft?'#777a7e':'#2b2b29'} threshold={20}/>}
   </mesh>);
 /**
@@ -158,8 +158,11 @@ function Subject() {
       const oz = horiz ? Math.sign(o.z - cz) * off : 0;
       return (
         <group key={o.id}>
+          {/* Glass here matches the interior Openings() pane (Scene.tsx) — opaque,
+              this was the reason the facade never showed anything happening inside. */}
           <Box w={horiz ? o.w : 0.05} h={o.h} d={horiz ? 0.05 : o.w}
             c={col} p={[o.x + ox, y, o.z + oz]} edge={false}
+            transparent={isGlass} opacity={isGlass ? 0.35 : 1}
             info={`${o.kind} ${(o.w * 1000).toFixed(0)} × ${(o.h * 1000).toFixed(0)}`} />
           {[o.h / 2 + 0.045, -o.h / 2 - 0.045].map((dy, k) => (
             <Box key={k} w={horiz ? o.w + 0.14 : 0.09} h={0.09} d={horiz ? 0.09 : o.w + 0.14}
