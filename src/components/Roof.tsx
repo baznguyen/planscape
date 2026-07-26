@@ -103,13 +103,25 @@ function Eave({ x0, x1, z0, z1, y, overhang }: {
     { p: [ax0, y, (az0 + az1) / 2], w: 0.06, d: az1 - az0 },
     { p: [ax1, y, (az0 + az1) / 2], w: 0.06, d: az1 - az0 },
   ];
+  // The soffit is the underside of the OVERHANG — a ring, not a plate. Drawn as a
+  // full plate it became a 28 m ceiling slab hanging at 5.55, which is BELOW the
+  // first floor ceiling at 5.63, so it sliced through the head of every external
+  // wall and read from the street as a dark slot under the roof.
+  const sy = y - 0.03;
+  const soffits: { p: [number, number, number]; w: number; d: number }[] = [
+    { p: [(ax0 + ax1) / 2, sy, az0 + overhang / 2], w: ax1 - ax0, d: overhang },
+    { p: [(ax0 + ax1) / 2, sy, az1 - overhang / 2], w: ax1 - ax0, d: overhang },
+    { p: [ax0 + overhang / 2, sy, (az0 + az1) / 2], w: overhang, d: az1 - az0 - overhang * 2 },
+    { p: [ax1 - overhang / 2, sy, (az0 + az1) / 2], w: overhang, d: az1 - az0 - overhang * 2 },
+  ];
   return (
     <group>
-      {/* soffit lining, set just under the eave line */}
-      <mesh position={[(ax0 + ax1) / 2, y - ROOF.fasciaDepthM + 0.01, (az0 + az1) / 2]} receiveShadow>
-        <boxGeometry args={[ax1 - ax0, 0.02, az1 - az0]} />
-        <meshStandardMaterial color={C.soffit} roughness={0.95} />
-      </mesh>
+      {soffits.map((s, i) => (
+        <mesh key={`sf${i}`} position={s.p} receiveShadow>
+          <boxGeometry args={[s.w, 0.02, s.d]} />
+          <meshStandardMaterial color={C.soffit} roughness={0.95} />
+        </mesh>
+      ))}
       {runs.map((r, i) => (
         <group key={i}>
           <mesh position={[r.p[0], y - ROOF.fasciaDepthM / 2, r.p[2]]} castShadow>

@@ -4,3 +4,6 @@ dist-test/
 .env
 .env.local
 tsconfig.tsbuildinfo
+
+# view captures are build artefacts; the hashes in baseline.json are the record
+tools/views/*.png

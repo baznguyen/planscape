@@ -87,6 +87,14 @@ export default function Ui() {
     return () => cancelAnimationFrame(raf);
   }, [s.playing]);
 
+  // A sheet owns the bottom of a phone screen while it is open. The CSS sibling
+  // selector could not express this because the stats strip is rendered before
+  // one sheet and after the other, so the state goes on the body instead.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.classList.toggle('sheetOpen', s.drawer !== null);
+  }, [s.drawer]);
+
   const sun = solarState(s.month, s.minutes);
   const openCount = ALL_OPENINGS.filter(o => s.openIds.has(o.id) && o.kind !== 'cased').length;
   const sel = s.selectedRoom ? roomById(s.selectedRoom) : null;
@@ -97,28 +105,32 @@ export default function Ui() {
         <div className="brand"><b>SiteScape</b>
           <span title="101 Campbell St, Fairfield East · 28.14 × 11.0 m">101 Campbell St, Fairfield East</span></div>
         <div className="grow" />
+        <div className="segGrp"><span className="segCap">View</span>
         <div className="seg ico">{(['walk','plan','street'] as const).map(v =>
           <button key={v} className={s.view === v ? 'on' : ''} data-tip={VIEW_TIP[v]}
             aria-label={VIEW_TIP[v]} aria-pressed={s.view === v}
-            onClick={() => s.setView(v)}>{VIEW_ICON[v]}</button>)}</div>
+            onClick={() => s.setView(v)}>{VIEW_ICON[v]}</button>)}</div></div>
+        <div className="segGrp"><span className="segCap">Floor</span>
         <div className="seg ico">{([0,1] as const).map(f =>
           <button key={f} className={s.floor === f ? 'on' : ''} data-tip={f ? 'First floor' : 'Ground floor'}
             aria-label={f ? 'First floor' : 'Ground floor'} aria-pressed={s.floor === f}
-            onClick={() => s.setFloor(f)}>{f ? I.first : I.ground}</button>)}</div>
+            onClick={() => s.setFloor(f)}>{f ? I.first : I.ground}</button>)}</div></div>
+        <div className="segGrp"><span className="segCap">Roof</span>
         <div className="seg ico">
           <button className={s.showRoof ? 'on' : ''} data-tip="Roof & ceilings"
             aria-label="Roof and ceilings" aria-pressed={s.showRoof}
             onClick={() => s.setShowRoof(!s.showRoof)}>{I.roof}</button>
           <button data-tip="Reset the view" aria-label="Reset the view"
             onClick={s.resetView}>{I.reset}</button>
-        </div>
+        </div></div>
         {/* Ambience is a control, not a read-out, so it wears the same segmented
             grouping as the view and floor toggles rather than its own chrome. */}
+        <div className="segGrp"><span className="segCap">Light</span>
         <div className="seg ico">{AMBIENCE.map((a, i) =>
           <button key={a.name} className={s.ambience === i ? 'on' : ''}
             data-tip={`${a.name} · ${a.lux} lx · ${a.kelvin}K`}
             aria-label={`${a.name} lighting preset`} aria-pressed={s.ambience === i}
-            onClick={() => s.applyAmbience(i)}>{AMB_ICONS[i] ?? I.roof}</button>)}</div>
+            onClick={() => s.applyAmbience(i)}>{AMB_ICONS[i] ?? I.roof}</button>)}</div></div>
       </header>
 
       {/* Only one surface at a time: while ANY sheet is open both launchers

@@ -163,3 +163,31 @@ off so the string still floats above the render, and de-cluttered every frame
 in screen space: project, sort best-first, hide anything whose box lands on a
 box already accepted. External wall dimensions outrank room names, which outrank
 internal walls — a drawing is readable because a draftsman leaves labels out.
+
+## Verify the whole model, not the thing you just changed
+
+The elevation had a 300 mm slot running the full length of the house and nobody
+noticed for three commits.
+
+`Face()` in `Exterior.tsx` drew storey 0 from FFL 0 to FCL 2.740 and storey 1
+from FFL 3.040 to FCL 5.630. Nothing at all drew the floor structure between
+them — so from the street you could see daylight straight through the building
+at first floor level. The soffit compounded it: drawn as a full plate rather
+than a ring, it hung a 28 m ceiling slab at 5.55, which is BELOW the first floor
+ceiling at 5.63, so it sliced through the head of every external wall.
+
+Both are ordinary modelling mistakes. The interesting failure is the process
+one: every check that existed measured either the 2D UI (the overlap detector)
+or the ground floor interior (the peer review, the walkability flood). Street
+view renders a DIFFERENT set of geometry from walk and plan view — `interior`
+is false, so Floors, Walls, Ceilings and Furniture unmount and only the facade
+massing shows. Nothing looked at it, so it drifted.
+
+`tools/views.mjs` is the answer: nine fixed views — both floors, plan, street,
+street at night, eye level, dimensions, and two mobile — hashed and compared on
+every run. A changed hash is not a failure; it is a question. Open the PNG,
+confirm the change was intended, and re-baseline with `--base`.
+
+The rule this encodes: **a model is not verified by checking the thing you just
+changed.** Geometry that only one camera can see will break, quietly, in the
+direction nobody is looking.

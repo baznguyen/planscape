@@ -672,8 +672,9 @@ main{position:fixed;inset:0}
   .sheet .tbItem{border-radius:13px}
   .tileGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   /* a sheet owns the bottom of the screen while it is open */
-  .sheet.open ~ .walkPad{opacity:0; pointer-events:none}
-  .sheet.open ~ .statStrip, .sheet.open ~ .sun{opacity:0; pointer-events:none}
+  body.sheetOpen .walkPad,
+  body.sheetOpen .statStrip,
+  body.sheetOpen .sun{opacity:0; pointer-events:none}
 }
 
 /* the old positioning rules are superseded by the sheet */
@@ -710,3 +711,50 @@ main{position:fixed;inset:0}
    sections and labels carry the meaning now, and the native title attribute
    carries the detail without being cropped by overflow:hidden. */
 .sheet [data-tip]::after{display:none}
+
+/* ============================================================
+   Labels. An icon with a tooltip is not a label — there are no
+   tooltips on touch, so an icon-only control is a guess.
+============================================================ */
+
+/* header groups get a caption, so the two rows of glyphs say what they are */
+.segGrp{display:flex;flex-direction:column;align-items:center;gap:2px}
+.segCap{font-size:8px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--ink3);line-height:1;user-select:none}
+
+/* asset tiles carry a short name under the drawing */
+.sheet .tbItem.lbl{aspect-ratio:auto;flex-direction:column;gap:4px;padding:9px 3px 7px}
+.sheet .tbItem.lbl span{font-size:8.5px;font-weight:640;line-height:1.15;text-align:center;
+  color:var(--ink2);letter-spacing:.1px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sheet .tbItem.lbl.on span{color:#fff}
+
+@media (max-width: 780px){
+  .sheet .tbItem.lbl{padding:10px 3px 8px}
+  .sheet .tbItem.lbl span{font-size:9px}
+  .segCap{font-size:7.5px;letter-spacing:.6px}
+}
+
+/* A stale mobile rule set `.seg.ico{order:-1}` back when the segments were
+   direct children of the header. Inside a captioned group that pulls the
+   buttons above their own caption, so every label read as the label of the row
+   below it. Order only means anything among siblings — reset it here. */
+.segGrp .seg.ico{order:0}
+.segGrp{flex:none}
+
+/* The launcher lane and the stats strip were both claiming the bottom-left
+   corner, so the ✚ sat on top of the outdoor temperature. Give the strip the
+   full width above them. */
+@media (max-width: 780px){
+  .statStrip{bottom:126px;left:8px;right:8px}
+  .railToggle{bottom:76px;left:12px}
+  .toolTab{bottom:76px;left:64px}
+  .walkPad{bottom:170px}
+  .segCap{font-size:7px;letter-spacing:.5px;margin-bottom:1px}
+}
+
+/* A later sibling rule was still fading the pad to .3 instead of hiding it.
+   On a phone the sheet owns the bottom outright. */
+@media (max-width: 780px){
+  body.sheetOpen .walkPad{opacity:0 !important;pointer-events:none}
+}

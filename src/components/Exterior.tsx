@@ -17,11 +17,18 @@ const Box = ({ w,h,d,c,p,r,info,edge=true,soft=false }:
     <boxGeometry args={[w,h,d]}/><meshStandardMaterial color={c} roughness={0.85}/>
     {edge && <Edges color={soft?'#777a7e':'#2b2b29'} threshold={20}/>}
   </mesh>);
+/**
+ * Context buildings. Shown quiet rather than ghosted: at 0.28 opacity with
+ * depthWrite off, every internal edge of every neighbour showed through every
+ * other one and the street read as a lattice of glass boxes — which looks like
+ * a rendering fault, not a drafting convention. Solid, pale and desaturated
+ * says "not the subject" without saying "broken".
+ */
 const Ghost = ({ w,h,d,p,r }: { w:number;h:number;d:number;p:[number,number,number];r?:[number,number,number] }) => (
   <mesh position={p} rotation={r} castShadow receiveShadow>
     <boxGeometry args={[w,h,d]}/>
-    <meshStandardMaterial color={M.ghost} transparent opacity={0.28} roughness={1} depthWrite={false}/>
-    <Edges color="#777a7e" threshold={20}/>
+    <meshStandardMaterial color={M.ghost} roughness={1} transparent opacity={0.92}/>
+    <Edges color="#9aa0a6" threshold={26}/>
   </mesh>);
 const Tree = ({ x,z,h=5.5 }: { x:number;z:number;h?:number }) => (
   <group position={[x,0,z]}>
@@ -79,6 +86,57 @@ function Subject() {
     </group>);
   };
 
+  /**
+   * The first floor SLAB EDGE.
+   *
+   * Face() draws storey 0 from FFL 0 to FCL 2.740 and storey 1 from FFL 3.040 to
+   * FCL 5.630 — which leaves the 300 mm of floor structure between them drawn by
+   * nothing at all. From the street that is an open slot running the full length
+   * of the house: you see daylight straight through the building at first floor
+   * level. That is the "gap in the ceiling".
+   *
+   * It is a real element, not a patch: the edge of the suspended slab, expressed
+   * on the elevations as a shadow line under the upper storey.
+   */
+  const SlabEdge = () => {
+    const y0 = LEVELS.groundFcl, y1 = LEVELS.firstFfl;
+    const h = y1 - y0, y = y0 + h / 2;
+    const m = g.renderSecond;
+    const runs: { w: number; d: number; p: [number, number, number] }[] = [
+      { w: F1.x1 - F1.x0 + 0.24, d: 0.24, p: [(F1.x0 + F1.x1) / 2, y, F1.z1] },
+      { w: F1.x1 - F1.x0 + 0.24, d: 0.24, p: [(F1.x0 + F1.x1) / 2, y, F1.z0] },
+      { w: 0.24, d: F1.z1 - F1.z0, p: [F1.x1, y, (F1.z0 + F1.z1) / 2] },
+      { w: 0.24, d: F1.z1 - F1.z0, p: [F1.x0, y, (F1.z0 + F1.z1) / 2] },
+    ];
+    return (<group>
+      {runs.map((r, i) => (
+        <Box key={i} w={r.w} h={h} d={r.d} c={m.colour} p={r.p}
+          info="First floor slab edge, 300 mm" />
+      ))}
+    </group>);
+  };
+
+  /**
+   * The single-storey parts of the ground floor plate run past the first floor
+   * footprint. Without a lid they are open boxes seen from the street, so the
+   * flat roof over each is drawn here — the same thing the plan shows as a
+   * concealed-gutter roof over the porch and the rear.
+   */
+  const LowerLids = () => {
+    const y = LEVELS.groundFcl + 0.08;
+    const lids: { w: number; d: number; p: [number, number, number] }[] = [
+      { w: 28.03 - 6.6, d: F1.z0, p: [(6.6 + 28.03) / 2, y, F1.z0 / 2] },
+      { w: 28.03 - 6.6, d: GEOM.WID - F1.z1, p: [(6.6 + 28.03) / 2, y, (F1.z1 + GEOM.WID) / 2] },
+      { w: 28.03 - F1.x1, d: F1.z1 - F1.z0, p: [(F1.x1 + 28.03) / 2, y, (F1.z0 + F1.z1) / 2] },
+    ];
+    return (<group>
+      {lids.filter(l => l.w > 0.05 && l.d > 0.05).map((l, i) => (
+        <Box key={i} w={l.w} h={0.16} d={l.d} c={g.renderFirst.colour} p={l.p}
+          info="Roof over single storey" />
+      ))}
+    </group>);
+  };
+
   /** Openings punched into the facade from the model's own schedule. */
   const Glazing = () => (<group>
     {ALL_OPENINGS.filter(o => {
@@ -122,6 +180,8 @@ function Subject() {
     {(['N','S','E','W'] as const).map(f => (
       <group key={f}><Face face={f} storey={0} /><Face face={f} storey={1} /></group>
     ))}
+    <SlabEdge />
+    <LowerLids />
     <Glazing />
     <Roof />
 

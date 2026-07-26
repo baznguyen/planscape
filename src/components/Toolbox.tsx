@@ -16,6 +16,20 @@ const GROUPS: { group: string; category: Parameters<typeof assetsIn>[0] }[] = [
   { group: 'Climate', category: 'climate' },
   { group: 'Network', category: 'network' },
 ];
+/**
+ * Short names for the tiles. The full label is right ("In-ceiling speaker 6.5\"")
+ * but it will not fit under a 60 px tile, and a tile with no text at all is
+ * unreadable on a phone — there are no tooltips on touch, so an icon-only grid
+ * of fifteen items is fifteen guesses. Two words each, full label on the title.
+ */
+const SHORT: Record<string, string> = {
+  spk_ceiling: 'In-ceiling', spk_wall: 'In-wall', spk_surround: 'Surround',
+  spk_bookshelf: 'Bookshelf', sub: 'Subwoofer',
+  dl_wide: 'Downlight 90°', dl_narrow: 'Downlight 36°', pendant: 'Pendant',
+  lamp_floor: 'Floor lamp', lamp_table: 'Table lamp',
+  heater_panel: 'Panel heater', heater_radiant: 'Radiant', vent_ceiling: 'A/C vent',
+  ap_ceiling: 'AP ceiling', ap_wall: 'AP wall',
+};
 const TAB_TITLE: Record<'place' | 'finish' | 'paint' | 'check', string> = {
   place: 'Add to the model', finish: 'Finishes', paint: 'Paint & colour', check: 'Drawing review',
 };
@@ -79,7 +93,9 @@ export default function Toolbox() {
               <div className="mini warn" onClick={() => s.clearPlaceError()}>{s.placeError}</div>
             )}
             {s.placing
-              ? <div className="mini armed"><b>{s.placing.type}</b> — tap the floor
+              ? <div className="mini armed">
+                  <b>{ASSETS.find(a => a.id === s.placing!.type)?.label ?? s.placing.type}</b>
+                  {' — tap the floor to place it '}
                   <button className="lnk" onClick={() => s.setPlacing(null)}>cancel</button></div>
               : <div className="mini hint">Tap an item, then tap the floor</div>}
             {GROUPS.map(g => (
@@ -88,7 +104,7 @@ export default function Toolbox() {
                 <div className="tbGrid">
                   {assetsIn(g.category).map(a => (
                     <button key={a.id}
-                      className={`tbItem ${s.placing?.type === a.id ? 'on' : ''}`}
+                      className={`tbItem lbl ${s.placing?.type === a.id ? 'on' : ''}`}
                       title={`${a.label} · ${a.mount.replace('-', ' ')}`}
                       aria-label={`${a.label}, mounts to ${a.mount.replace('-', ' ')}`}
                       onClick={() => {
@@ -97,6 +113,7 @@ export default function Toolbox() {
                         if (arm) s.setDrawer(null);   // get out of the way of the tap
                       }}>
                       <i>{ASSET_ICON[a.id] ?? a.icon}</i>
+                      <span>{SHORT[a.id] ?? a.label}</span>
                     </button>
                   ))}
                 </div>
