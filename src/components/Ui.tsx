@@ -137,7 +137,7 @@ export default function Ui() {
           stand down, so nothing floats over the sheet you are using. */}
       {s.drawer === null && (
         <button className="railToggle" onClick={() => s.setDrawer('rail')}
-          aria-label="Layers and openings">☰</button>
+          aria-label="Layers and openings">{OVERLAY_ICON.layers}</button>
       )}
       {/* Same sheet as the toolbox. The overlay rail used to be a bare column of
           icons with a truncated caption; as a sheet it gets a title, a real
@@ -153,6 +153,34 @@ export default function Ui() {
               <i>{OVERLAY_ICON[k]}</i><span>{tip.split(' — ')[0]}</span>
             </button>)}
         </div>
+        {/* The sheet underlay is the reason this overlay exists, so its
+            registration controls live with it rather than in a settings screen
+            nobody opens. No drawing announces its own plot scale in a form a
+            program can trust — line it up once and read the two together. */}
+        {s.overlays.plan && (
+          <>
+            <div className="sec">Plan sheet</div>
+            <label className="mini rangeRow">Opacity {(s.planCal.opacity * 100).toFixed(0)}%
+              <input type="range" min={0.1} max={1} step={0.05} value={s.planCal.opacity}
+                aria-label="Plan sheet opacity"
+                onChange={e => s.setPlanCal({ opacity: +e.target.value })} /></label>
+            <label className="mini rangeRow">Scale {s.planCal.scale.toFixed(3)}×
+              <input type="range" min={0.8} max={1.25} step={0.002} value={s.planCal.scale}
+                aria-label="Plan sheet scale"
+                onChange={e => s.setPlanCal({ scale: +e.target.value })} /></label>
+            <label className="mini rangeRow">Across {s.planCal.dx.toFixed(2)} m
+              <input type="range" min={-4} max={4} step={0.02} value={s.planCal.dx}
+                aria-label="Plan sheet offset across"
+                onChange={e => s.setPlanCal({ dx: +e.target.value })} /></label>
+            <label className="mini rangeRow">Down {s.planCal.dz.toFixed(2)} m
+              <input type="range" min={-4} max={4} step={0.02} value={s.planCal.dz}
+                aria-label="Plan sheet offset down"
+                onChange={e => s.setPlanCal({ dz: +e.target.value })} /></label>
+            <button className="btn" onClick={() => s.setPlanCal({ scale: 1, dx: 0, dz: 0 })}>
+              Reset registration</button>
+          </>
+        )}
+
         <div className="sec">Doors & windows</div>
         <div className="tileGrid">
           <button className="tile" aria-label="Open every door and window"
@@ -177,14 +205,6 @@ export default function Ui() {
           <span className="x">Dismiss</span>
         </div>
       )}
-
-      <div className="statStrip">
-        <span><i>Outdoor</i><b>{s.outdoorT.toFixed(1)} °C</b></span>
-        <span><i>Season</i><b>{seasonOf(s.month)} · {WIND[s.month][0]}°</b></span>
-        <span><i>Sun</i><b>{((sun.alt * 180) / Math.PI).toFixed(0)}°</b></span>
-        <span><i>Open</i><b>{openCount}/{ALL_OPENINGS.filter(o=>o.kind!=='cased').length}</b></span>
-        <span><i>Floor</i><b>{s.floor ? 'First' : 'Ground'}</b></span>
-      </div>
 
       <Toolbox />
       <WalkPad />

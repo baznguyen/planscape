@@ -78,7 +78,7 @@ export const PLAN_TRACE: TraceSeg[] = [
   S(0, 'internal', 21.4, 0.22, 21.4, 2.92, 'guest / ENS 2, chain 3,870 + 90'),
   S(0, 'internal', 23.0, 0.22, 23.0, 2.92, 'ENS 2 / BED 5, chain 1,850 + 90'),
   S(0, 'internal', 21.4, 1.95, 23.0, 1.95, 'ENS 2 north wall'),
-  S(0, 'internal', 23.9, 3.0, 23.9, 5.3, 'entry / hall, 1,500 cased opening'),
+  // no partition here on SK1: the entry runs straight into the hall and the stair
   S(0, 'internal', 25.93, 2.92, 25.93, 5.13, 'entry east wall carrying the front door'),
 
   // ---------------- first floor shell ----------------

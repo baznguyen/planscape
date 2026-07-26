@@ -7,6 +7,12 @@ import { useStore } from '@/store/useStore';
 import { solarState } from '@/lib/solvers/sun';
 
 const yOf = (f: 0 | 1) => (f === 0 ? 0 : GEOM.F1Y);
+/**
+ * How high the strings float above the level you are on. Above the joinery and
+ * the benchtops, below the ceiling — a measurement overlay you have to look
+ * through a kitchen island to read is not an overlay.
+ */
+const DIM_Y = 1.62;
 
 /**
  * The measurement overlay.
@@ -74,12 +80,13 @@ function dimLabel(mm: number, night: boolean): Painted {
   return paint(`d|${text}|${night}`, c => {
     c.font = F(13, 700);
     const w = c.measureText(text).width + 14, h = 21;
-    c.fillStyle = night ? 'rgba(14,20,32,.9)' : 'rgba(255,255,255,.95)';
-    c.strokeStyle = night ? 'rgba(255,217,138,.6)' : 'rgba(184,135,63,.55)';
+    // semi-transparent, so the thing being measured stays visible under it
+    c.fillStyle = night ? 'rgba(14,20,32,.62)' : 'rgba(255,255,255,.58)';
+    c.strokeStyle = night ? 'rgba(255,217,138,.55)' : 'rgba(17,22,28,.42)';
     c.lineWidth = 1.4;
     roundRect(c, 0.7, 0.7, w - 1.4, h - 1.4, 5);
     c.fill(); c.stroke();
-    c.fillStyle = night ? '#ffe9bd' : '#1c2128';
+    c.fillStyle = night ? '#ffe9bd' : '#11161c';
     c.font = F(13, 700);
     c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(text, w / 2, h / 2 + 0.5);
@@ -94,13 +101,13 @@ function roomLabel(name: string, area: number, wide: number, deep: number, night
   const w = Math.max(measure(l1, F(12.5, 650)), measure(l2, F(14, 750)), measure(l3, F(10, 550))) + 18;
   const h = 50;
   return paint(`r|${l1}|${l2}|${l3}|${night}`, c => {
-    c.fillStyle = night ? 'rgba(14,20,32,.9)' : 'rgba(255,255,255,.95)';
-    c.strokeStyle = night ? 'rgba(255,217,138,.45)' : 'rgba(20,28,40,.25)';
+    c.fillStyle = night ? 'rgba(14,20,32,.6)' : 'rgba(255,255,255,.55)';
+    c.strokeStyle = night ? 'rgba(255,217,138,.4)' : 'rgba(20,28,40,.28)';
     c.lineWidth = 1.4;
     roundRect(c, 0.7, 0.7, w - 1.4, h - 1.4, 6);
     c.fill(); c.stroke();
     c.textAlign = 'center';
-    c.fillStyle = night ? '#ffe9bd' : '#1c2128';
+    c.fillStyle = night ? '#ffe9bd' : '#11161c';
     c.font = F(12.5, 650); c.fillText(l1, w / 2, 16);
     c.fillStyle = night ? '#ffd98a' : '#b8873f';
     c.font = F(14, 750); c.fillText(l2, w / 2, 32);
@@ -136,7 +143,10 @@ export default function Dimensions() {
   // vanishes at midnight, so the whole string inverts as the sun goes down.
   const alt = solarState(month, minutes).alt;
   const night = alt <= 0;
-  const lineColour = night ? '#ffd98a' : '#8a5f1f';
+  // Black by day. Gold read as decoration; a dimension string on a drawing is
+  // black ink, and against a pale render black is what stays legible over
+  // joinery, floor finishes and the plan sheet underlay all at once.
+  const lineColour = night ? '#ffd98a' : '#11161c';
 
   /**
    * Dimension lines: one string per wall, offset clear on the outward side,
@@ -145,7 +155,7 @@ export default function Dimensions() {
    * so the memo never hit and it leaked a BufferGeometry on every store tick.
    */
   const geom = useMemo(() => {
-    const y = yOf(floor) + 1.35;
+    const y = yOf(floor) + DIM_Y;
     const cx = GEOM.LEN / 2, cz = GEOM.WID / 2;
     const pts: THREE.Vector3[] = [];
     const seg = (ax: number, az: number, bx: number, bz: number) =>
@@ -227,7 +237,7 @@ export default function Dimensions() {
     if (!g || !on) return;
     const H = size.height;
     const p11 = camera.projectionMatrix.elements[5];
-    const y = yOf(floor) + 1.37;
+    const y = yOf(floor) + DIM_Y + 0.02;
     const taken: number[][] = [];
     const order = g.children
       .map((child, i) => {
@@ -263,7 +273,7 @@ export default function Dimensions() {
   // Dimensions belong to the model, not to the empty lawn: in street view the
   // interior is not built, so a lattice of strings would hang in mid-air.
   if (!on || view === 'street') return null;
-  const y = yOf(floor) + 1.35;
+  const y = yOf(floor) + DIM_Y;
 
   return (
     <group renderOrder={45}>

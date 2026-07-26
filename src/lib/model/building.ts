@@ -85,11 +85,11 @@ export const ROOMS: Room[] = [
   R('g_ldy','Laundry',0,17.91,20.09,9.56,10.81,'laundry','ceramicTile',['bath']),
   // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
   R('g_gar','Double Garage',0,20.09,25.93,5.13,10.81,'garage','slabOnGround',['car','car'],0,{tour:true}),
-  R('g_gst','Guest Bedroom',0,17.9,21.4,0.22,2.92,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('g_en2','Ensuite 2',0,21.4,23.0,0.22,1.95,'bath','ceramicTile',['bath']),
-  R('g_bd5','Bedroom 5',0,23.0,25.9,0.22,2.92,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
-  R('g_hal','Hall',0,17.85,23.9,2.92,5.13,'hall','timberFloor',[]),
-  R('g_ent','Entry Foyer',0,23.9,25.93,2.92,5.13,'hall','ceramicTile',[],0,{tour:true}),
+  R('g_gst','Guest Bedroom',0,17.9,21.54,0.39,3.00,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('g_en2','Ensuite 2',0,21.54,23.39,0.39,2.95,'bath','ceramicTile',['bath']),
+  R('g_bd5','Bedroom 5',0,23.44,25.90,0.39,3.53,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
+  R('g_hal','Hall',0,17.85,23.44,3.00,5.13,'hall','timberFloor',[]),
+  R('g_ent','Entry Foyer',0,23.44,25.90,3.53,5.13,'hall','ceramicTile',[],0,{tour:true}),
   R('g_por','Porch',0,25.93,28.03,3.5,6.5,'outdoor','ceramicTile',[],0,{outdoor:true}),
   // ---- first ----
   R('f_sit','Sitting Room',1,6.8,11.5,0.9,5.0,'living','carpet',['sofa','rug','tv','curtain'],2,{tour:true}),
@@ -100,6 +100,21 @@ export const ROOMS: Room[] = [
   R('f_bth','Bathroom',1,16.4,19.0,7.9,10.1,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
   R('f_bd4','Bedroom 4',1,19.2,25.9,6.35,10.1,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
   R('f_lnd','Landing',1,13.0,21.5,5.0,6.35,'hall','timberFloor',[],0,{skylight:true}),
+  /**
+   * The floor the flight actually arrives on. Once the stair was re-measured
+   * onto its real line it climbed to first floor level at x 18,400 — and there
+   * was no room there, so it finished in mid air. SK1 shows the landing running
+   * on past the head of the flight to the study wall; this is that piece of it,
+   * stopped at z 5,000 so it butts the corridor rather than overlapping it.
+   *
+   * It is a patch on a bigger problem, and worth saying so plainly: with the
+   * ground floor now registered against the sheet at true 1:100, the first floor
+   * transcription is visibly out — between 0.7 m and 2 m depending on which wall
+   * you measure, and not by a constant, so it cannot be nudged back into place.
+   * That level needs re-measuring the same way this one was, wall by wall,
+   * before anything else on it should be trusted.
+   */
+  R('f_hea','Stair Head',1,15.35,18.39,3.05,5.0,'hall','timberFloor',[]),
   R('f_pri','Principal Suite',1,19.6,25.9,2.6,5.0,'bed','carpet',['bed','rug','curtain'],2,{tour:true}),
   R('f_wr1','WIR 1',1,19.6,21.6,0.9,2.4,'store','carpet',['robe']),
   R('f_ens','Ensuite',1,21.8,24.0,0.9,2.6,'bath','ceramicTile',['bath'],0,{tour:true,skylight:true}),
@@ -127,16 +142,35 @@ export const WALLS: Wall[] = [
   W('gi_6',0,16.0,2.8,17.7,2.8,'studWall',false,'N'),
   W('gi_7',0,17.78,0,17.78,2.92,'studWall',false,'E'),
   W('gi_8',0,17.78,5.6,17.78,11,'studWallAcoustic',false,'E'),
-  W('gi_9',0,17.85,2.92,25.93,2.92,'studWall',false,'N'),
+  // Measured off SK1: this wall runs z 3,000 and stops at x 23,440, where a
+  // north-south wall picks up and the boundary steps 530 north to serve
+  // bedroom 5. Modelled as one straight run at z 2,920 all the way to the
+  // east wall, it pushed the entry foyer 600 mm into the bedroom.
+  W('gi_9',0,18.40,3.00,23.44,3.00,'studWall',false,'N'),
+  W('gi_9b',0,23.44,3.53,25.93,3.53,'studWall',false,'N'),
+  W('gi_9c',0,23.44,0.39,23.44,3.53,'studWall',false,'E'),
   W('gi_10',0,20.09,5.13,20.09,11,'studWallAcoustic',false,'E'),
   W('gi_11',0,17.85,7.42,20.09,7.42,'studWall',false,'N'),
   W('gi_18',0,17.85,9.56,20.09,9.56,'studWall',false,'N'),
   W('gi_12',0,20.09,5.13,25.93,5.13,'studWallAcoustic',false,'N'),
   W('gi_19',0,18.55,7.42,18.55,9.56,'studWall',false,'E'),
-  W('gi_13',0,21.4,0.22,21.4,2.92,'studWall',false,'E'),
+  W('gi_13',0,21.54,0.39,21.54,3.00,'studWall',false,'E'),
   W('gi_14',0,23.0,0.22,23.0,2.92,'studWall',false,'E'),
   W('gi_15',0,21.4,1.95,23.0,1.95,'studWall',false,'N'),
-  W('gi_16',0,23.9,3.0,23.9,5.13,'studWall',false,'E'),
+  /**
+   * REMOVED — gi_16, a stud wall at x = 23,900 between the entry and the hall.
+   *
+   * It is not on the drawing. Sheet SK1 shows the ENTRY open to the west with
+   * the stair's bottom riser starting directly off it; the only heavy linework
+   * in that corner is the south wall to Bed 5 and the wall over the top. The
+   * wall I had modelled put a partition across the front door's own landing and
+   * discharged its opening straight onto the flank of the staircase — which is
+   * what "how can anyone walk into the back of the house" was pointing at.
+   *
+   * planTrace.ts carried the same line, which is the honest lesson here: a
+   * transcription cannot check a transcription. Only the sheet can, which is
+   * what the plan-sheet underlay is for.
+   */
   // first external shell
   W('fw_s',1,6.6,0.72,27.58,0.72,'renderClad',true,'S'),
   W('fw_n',1,6.6,10.28,27.58,10.28,'renderClad',true,'N'),
@@ -170,9 +204,28 @@ export interface Stair {
   /** the two spaces it joins */
   connects: [string, string];
 }
-/** Straight flight against the north side of the hall, under the first floor landing. */
+/**
+ * Straight flight along the SOUTH side of the hall, rising west, under the
+ * first floor landing void.
+ *
+ * Re-measured off SK1 rather than re-typed. The sheet is plotted at 1:100, so
+ * one metre is exactly 28.3465 pt, and at that scale the drawing gives the
+ * flight without any interpretation:
+ *   · the treads are numbered — 1..6 on the ground floor sheet, 2..17 on the
+ *     first floor sheet — and their number text sits at a dead-regular 7.087 pt
+ *     pitch, which is a 250 mm going to three figures;
+ *   · tread 1 centres on x 22.54 and tread 17 on x 18.53, so the run is 16
+ *     goings and the 17th tread is followed by one more riser onto the landing:
+ *     18 risers over the 3,040 floor-to-floor, or 169 mm each;
+ *   · the riser lines span 29.77 pt in z — 1,050 mm — from z 3.04 to z 4.09.
+ *
+ * The previous figures had the flight a metre north and 1.2 m east of that,
+ * jammed against the garage wall. That is what put a stair under the garage
+ * door and left no way past it into the back of the house. It was never a
+ * rendering fault; the model said so and the render drew what it was told.
+ */
 export const STAIRS: Stair[] = [
-  { id:'st_1', fromFloor:0, x0:20.45, x1:23.85, z0:4.05, z1:5.10, width:1.05, risers:15,
+  { id:'st_1', fromFloor:0, x0:18.40, x1:22.67, z0:3.04, z1:4.09, width:1.05, risers:18,
     connects:['g_hal','f_lnd'] },
 ];
 
@@ -194,17 +247,26 @@ export const OPENINGS: Opening[] = [
   O('d_entry',0,'gi_1',25.93,4.4,1.1,2.34,0,'door','doorSolid',0.9,'g_ent',null,'E'),
   O('d_alf',0,'gw_w',6.6,5.35,3.6,2.15,0,'slider','glazingSingle',0.5,'g_mea',null,'W'),
   O('d_gar',0,'gi_20',25.93,8.3,4.81,2.143,0,'garage','garageDoor',0.9,'g_gar',null,'E'),
-  O('d_g1',0,'gi_9',19.62,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
-  O('d_g2',0,'gi_9',24.6,2.92,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
-  O('d_g3',0,'gi_13',21.4,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
+  // "CSD 720" — a 720 cavity slider, jambs at x 18.40 and x 19.12 on the sheet.
+  // It has to be at that end: the flight runs the length of this wall, and only
+  // at its top is there height to walk under. Modelled 860 mm east of there it
+  // sat below the middle of the flight with 1.9 m of headroom.
+  O('d_g1',0,'gi_9',18.76,3.00,0.72,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
+  O('d_g2',0,'gi_9b',24.6,3.53,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
+  O('d_g3',0,'gi_13',21.54,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
   O('d_g4',0,'gi_11',19.4,7.42,0.82,2.34,0,'door','doorSolid',0.9,'g_pdr','g_wil','N'),
   O('d_g4b',0,'gi_18',19.4,9.56,0.82,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
   O('d_g4c',0,'gi_19',18.55,8.5,0.82,2.34,0,'door','doorSolid',0.9,'g_wil','g_lin','E'),
   O('d_g4d',0,'gi_8',17.78,6.4,0.9,2.34,0,'door','doorSolid',0.9,'g_fam','g_pdr','E'),
   O('d_g5',0,'gi_10',20.09,6.6,0.85,2.34,0,'door','doorSolid',0.9,'g_gar','g_pdr','E'),
-  O('d_g6',0,'gi_12',22.5,5.13,2.4,2.34,0,'door','doorSolid',0.9,'g_gar','g_hal','N'),
+  // Garage to hall. SK1 labels this "820" and draws a single swinging leaf; the
+  // jambs measure to x 20.17 and x 21.03 at 1:100. It had been carrying a 2.4 m
+  // cased opening at x 22.5 — three times the width, two metres out of position,
+  // and discharging onto the staircase. A 2.4 m opening could not be right in
+  // any case: NCC Vol Two requires the garage/dwelling connection to be a
+  // self-closing solid-core doorset, which is what "820" on the sheet means.
+  O('d_g6',0,'gi_12',20.60,5.13,0.86,2.34,0,'door','doorSolid',0.9,'g_gar','g_hal','N'),
   O('d_g8',0,'gi_5',16.0,1.6,0.85,2.34,0,'door','doorSolid',0.9,'g_kit','g_wip','E'),
-  O('d_g9',0,'gi_16',23.9,4.6,1.5,2.34,0,'cased','openAperture',1,'g_ent','g_hal','E',true),
   // first doors
   O('d_bal',1,'fi_1',25.95,3.6,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri','f_bal','E'),
   O('d_f1',1,'fi_3',11.6,3.6,0.9,2.34,0,'door','doorSolid',0.9,'f_sit','f_std','E'),
@@ -229,27 +291,60 @@ export const OPENINGS: Opening[] = [
   O('d_f9',1,'fi_8',16.3,7.0,0.72,2.34,0,'door','doorSolid',0.9,'f_bd2','f_wr2','E'),
 ];
 
-/** Auto-generate awning/sliding windows along every external wall. */
+/**
+ * Windows, one per room per external wall it fronts.
+ *
+ * The first version of this marched along each external wall at a fixed 3.2 m
+ * pitch and asked which room happened to be near each mark. That is backwards.
+ * A window belongs to a room — a draftsperson places it where the room needs
+ * light and where the furniture will let it sit, not on a grid — and a pitch
+ * that ignores rooms will give one bedroom two windows and the next none. It
+ * did exactly that: Bedroom 5 fell between two marks and was modelled with no
+ * glazing at all.
+ *
+ * So: for every external wall, find the rooms whose frontage touches it, and
+ * give each one window centred on its own stretch of that wall, sized towards
+ * the 10% of floor area the NCC asks for and bounded by the frontage available.
+ * These are still generated openings, not the schedule off SK1 (AW 0409, AS
+ * 0627 and the rest) — but they are now wrong in a way that is proportionate
+ * rather than arbitrary.
+ */
 export function generateWindows(): Opening[] {
   const out: Opening[] = [];
-  const doorX = new Set(OPENINGS.map(o => o.wallId + ':' + o.x.toFixed(1) + ':' + o.z.toFixed(1)));
+  const HEAD = 1.25, SILL = 0.9, REVEAL = 0.3;
   for (const w of WALLS) {
     if (!w.external) continue;
     const dx = w.x2 - w.x1, dz = w.z2 - w.z1, L = Math.hypot(dx, dz);
     if (L < 2.0) continue;
-    const n = Math.max(1, Math.floor(L / 3.2)), gap = L / n;
-    for (let i = 0; i < n; i++) {
-      const t = (gap * (i + 0.5)) / L;
-      const x = w.x1 + dx * t, z = w.z1 + dz * t;
-      // skip if a door already occupies this stretch
-      let clash = false;
-      for (const o of OPENINGS) if (o.wallId === w.id && Math.hypot(o.x - x, o.z - z) < (o.w / 2 + 0.9)) clash = true;
+    const ux = dx / L, uz = dz / L;                     // along the wall
+    const nx = -uz, nz = ux;                            // across it
+    let i = 0;
+    for (const r of ROOMS) {
+      if (r.floor !== w.floor || r.outdoor || r.void) continue;
+      if (['store', 'garage', 'laundry'].includes(r.use)) continue;
+      // project the room's corners onto the wall: how much of it does it front,
+      // and how far off the wall line does its nearest face sit?
+      let t0 = Infinity, t1 = -Infinity, off = Infinity;
+      for (const [cx, cz] of [[r.x0, r.z0], [r.x1, r.z0], [r.x1, r.z1], [r.x0, r.z1]]) {
+        t0 = Math.min(t0, (cx - w.x1) * ux + (cz - w.z1) * uz);
+        t1 = Math.max(t1, (cx - w.x1) * ux + (cz - w.z1) * uz);
+        off = Math.min(off, Math.abs((cx - w.x1) * nx + (cz - w.z1) * nz));
+      }
+      // 600 mm covers any residential wall build-up; beyond that the room is
+      // simply not on this wall
+      if (off > 0.6) continue;
+      const a = Math.max(t0, REVEAL), b = Math.min(t1, L - REVEAL);
+      if (b - a < 1.2) continue;                        // no room for a window
+      const t = (a + b) / 2;
+      const x = w.x1 + ux * t, z = w.z1 + uz * t;
+      // sized towards 10% of the floor, capped by the frontage on offer
+      const want = ((r.x1 - r.x0) * (r.z1 - r.z0) * 0.11) / HEAD;
+      const width = Math.min(Math.max(want, 0.9), b - a - 0.4, 3.0);
+      const clash = OPENINGS.some(o => o.wallId === w.id &&
+        Math.abs((o.x - w.x1) * ux + (o.z - w.z1) * uz - t) < (o.w + width) / 2 + 0.3);
       if (clash) continue;
-      const room = ROOMS.find(r => r.floor === w.floor && !r.outdoor && !r.void &&
-        x >= r.x0 - 0.35 && x <= r.x1 + 0.35 && z >= r.z0 - 0.35 && z <= r.z1 + 0.35);
-      if (room && ['store','garage','laundry'].includes(room.use)) continue;
-      out.push(O(`win_${w.id}_${i}`, w.floor, w.id, x, z, 1.4, 1.25, 0.9,
-        'window', 'glazingSingle', 0.45, room ? room.id : null, null, w.orient));
+      out.push(O(`win_${w.id}_${i++}`, w.floor, w.id, x, z, width, HEAD, SILL,
+        'window', 'glazingSingle', 0.45, r.id, null, w.orient));
     }
   }
   return out;

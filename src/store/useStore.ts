@@ -70,6 +70,8 @@ interface S {
   placeError: string | null;
   /** the preset scheme currently applied, if the paint came from one */
   palette: string | null;
+  /** underlay registration for the plan sheet overlay */
+  planCal: { scale: number; dx: number; dz: number; opacity: number };
   /** first-person movement input: forward and strafe, each -1..1 */
   walkInput: { f: number; s: number };
   /** bumped to ask the camera rig to return to the view's default vantage */
@@ -95,6 +97,7 @@ interface S {
   setPlacing:(p:{kind:ItemKind;type:string}|null)=>void;
   clearPlaceError:()=>void;
   clearPlaced:()=>void;
+  setPlanCal:(p:Partial<{scale:number;dx:number;dz:number;opacity:number}>)=>void;
   placeAt:(floor:0|1,x:number,z:number,room?:string|null)=>void;
   updateItem:(id:string,p:Partial<PlacedItem>)=>void; removeItem:(id:string)=>void;
   setFinish:(roomId:string,surface:Surface,f:Finish|null)=>void;
@@ -144,6 +147,7 @@ export const useStore = create<S>((set, get) => ({
   thermal: {}, thermalDetail: {}, outdoorT: 25,
   selectedRoom: null, hoverRoom: null, showRoof: true, fov: 72,
   items: [], placing: null, placeError: null, finishes: {}, paints: [], palette: null,
+  planCal: { scale: 1, dx: 0, dz: 0, opacity: 0.55 },
   walkInput: { f: 0, s: 0 }, resetNonce: 0, eyeLevel: false, drawer: null,
 
   // Eye level is a WALK-view stance. Leaving it set while switching to plan or
@@ -199,6 +203,7 @@ export const useStore = create<S>((set, get) => ({
 
   setPlacing: p => set({ placing: p, placeError: null }),
   clearPlaceError: () => set({ placeError: null }),
+  setPlanCal: p => set(st => ({ planCal: { ...st.planCal, ...p } })),
   /** Drop whatever is armed at a point on the floor. Routed to the right collection. */
   placeAt: (floor, x, z, room) => {
     const p = get().placing;
@@ -316,11 +321,18 @@ if (typeof window !== 'undefined') {
         minutes: Math.round(s.minutes), playing: s.playing, hvacOn: s.hvacOn,
         overlays: { ...s.overlays },
         openCount: s.openIds.size,
+        /**
+         * What "all of them" means, so a test can assert against the model
+         * rather than against a count somebody once observed. Cased openings
+         * have no leaf and are always counted open.
+         */
+        openable: ALL_OPENINGS.length,
+        alwaysOpen: ALL_OPENINGS.filter(o => o.kind === 'cased').length,
         counts: {
           items: s.items.length, speakers: s.speakers.length,
           aps: s.aps.length, lights: s.lights.length, paints: s.paints.length,
         },
-        palette: s.palette,
+        palette: s.palette, planCal: { ...s.planCal },
         thermalRooms: Object.keys(s.thermal).length,
       };
     },

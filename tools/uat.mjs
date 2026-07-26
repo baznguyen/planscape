@@ -74,6 +74,65 @@ const tab = async (p, name) => {
   await p.waitForTimeout(350);
 };
 
+
+/* ------------------------------------------------------------------ *
+ * layout audit
+ *
+ * "Does the button work" is not the whole of UAT. A control that works
+ * perfectly and sits four pixels off the right edge of a phone, or that renders
+ * 14 px tall under a thumb, is still broken — and neither a screenshot diff nor
+ * a state assertion will say so, because the state is correct and the picture
+ * is the same picture that shipped last time.
+ *
+ * So this pass measures the interface itself, at every size, and asserts the
+ * things a designer would check by hand: nothing runs off the edge, nothing is
+ * too small to hit, and every panel can be closed by the control that closes it.
+ * ------------------------------------------------------------------ */
+const audit = p => p.evaluate(() => {
+  const seen = (el) => {
+    const s = getComputedStyle(el);
+    if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0.5 && r.height > 0.5;
+  };
+  const name = (el) =>
+    el.getAttribute('aria-label') || (el.className && String(el.className).split(' ')[0]) ||
+    (el.textContent || '').trim().slice(0, 20) || el.tagName.toLowerCase();
+  const controls = [];
+  for (const el of document.querySelectorAll('button, input, select, textarea, a[href], [role="button"]')) {
+    if (!seen(el)) continue;
+    if (el.type === 'range' || el.type === 'color' || el.type === 'file') continue;
+    const r = el.getBoundingClientRect();
+    controls.push({ id: name(el), x: Math.round(r.x), y: Math.round(r.y),
+                    w: Math.round(r.width), h: Math.round(r.height) });
+  }
+  return {
+    controls,
+    scrollW: document.documentElement.scrollWidth,
+    W: window.innerWidth, H: window.innerHeight,
+  };
+});
+
+/**
+ * Minimum hit target. AS/ISO 9241-411 and the mobile platform guidelines all
+ * land between 7 and 10 mm for a finger; at the nominal 96 dpi of a CSS pixel
+ * that is 26 to 38 px, so 36 sits at the top of the band without turning a
+ * dense professional tool into a phone app. A mouse is far more precise, so a
+ * fine pointer gets 24 — enough to catch a control that has collapsed, not
+ * enough to demand phone-sized chrome on a 1400 px window.
+ */
+const minTap = size => (size.touch ? 36 : 24);
+
+/** Every control that is on screen must be fully on screen, and big enough. */
+function checkLayout(c, a, size, where) {
+  const MIN = minTap(size);
+  const off = a.controls.filter(k => k.x < -1 || k.x + k.w > a.W + 1);
+  c.is(off.map(k => `${k.id}@${k.x}+${k.w}`), [], `${where}: nothing runs off the side of a ${a.W} px viewport`);
+  const small = a.controls.filter(k => Math.min(k.w, k.h) < MIN);
+  c.is(small.map(k => `${k.id}=${k.w}x${k.h}`), [], `${where}: every control is at least ${MIN} px on its short side`);
+  c.is(a.scrollW <= a.W + 1, true, `${where}: the page does not scroll sideways (${a.scrollW} vs ${a.W})`);
+}
+
 class Check {
   constructor(name) { this.name = name; this.fails = []; }
   is(got, want, what) {
@@ -152,9 +211,22 @@ const SCENARIOS = [
     await tap(p, '.railToggle');
     const g = p.locator('.sheet.open .tileGrid').nth(1);
     await tap(p, g.locator('.tile').nth(0));
-    c.gt((await state(p)).openCount, 40, 'open all opens everything');
+    /**
+     * Assert against the model, not against a number I once observed.
+     *
+     * This was `> 40`, and it started failing the day window generation was
+     * rewritten to place one window per room instead of one every 3.2 m — a
+     * change that made the model better and left 38 openable things instead of
+     * 41. A hard-coded count does not test "open all opens everything", it
+     * tests "the building has not changed", which is not the claim.
+     */
+    const opened = (await state(p)).openCount;
+    c.is(opened, (await state(p)).openable, 'open all opens every openable thing');
+    c.gt(opened, 10, 'and there are openings to open');
     await tap(p, g.locator('.tile').nth(1));
-    c.ok((await state(p)).openCount < 20, 'close all closes them');
+    const shut = await state(p);
+    c.is(shut.openCount, shut.alwaysOpen,
+      'close all closes everything that has a leaf to close');
     await tap(p, g.locator('.tile').nth(2));
     c.is((await state(p)).hvacOn, true, 'air conditioning toggles on');
     await tap(p, g.locator('.tile').nth(2));
@@ -390,14 +462,71 @@ const SCENARIOS = [
     c.is(unlabelled, 0, `every asset tile carries a name (${n} tiles)`);
     await closeSheet(p);
   }},
+
+  /* ---------------- responsive / UI-UX -------------------------- */
+  { name: 'layout: the overview fits its viewport', responsive: true,
+    run: async (p, c, size) => {
+      checkLayout(c, await audit(p), size, 'overview');
+    }},
+
+  { name: 'layout: every sheet fits and can be closed', responsive: true,
+    run: async (p, c, size) => {
+      for (const open of [
+        { what: 'tools', go: async () => tap(p, '.toolTab') },
+        { what: 'rail', go: async () => tap(p, '.railToggle') },
+      ]) {
+        await closeSheet(p);
+        await open.go();
+        await p.waitForTimeout(400);
+        c.is((await state(p)).drawer !== null, true, `${open.what}: opens`);
+        const a = await audit(p);
+        checkLayout(c, a, size, open.what);
+        // A sheet you cannot dismiss is a trap, and the close control moved to
+        // the left of the head — so assert it is on screen, not merely present.
+        const x = p.locator('.sheet.open .sheetX');
+        const box = await x.boundingBox().catch(() => null);
+        c.is(!!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= size.width, true,
+          `${open.what}: the close control is on screen`);
+        const sheet = await p.locator('.sheet.open').boundingBox().catch(() => null);
+        c.is(!!sheet && sheet.height <= size.height + 1, true,
+          `${open.what}: the sheet is no taller than the window`);
+        await closeSheet(p);
+        c.is((await state(p)).drawer, null, `${open.what}: closes`);
+      }
+    }},
+
+  { name: 'layout: the toolbox tabs all fit', responsive: true,
+    run: async (p, c, size) => {
+      await openTools(p);
+      for (const t of ['Add', 'Paint', 'Report']) {
+        await tab(p, t).catch(() => {});
+        await p.waitForTimeout(250);
+        checkLayout(c, await audit(p), size, `tools/${t}`);
+      }
+      await closeSheet(p);
+    }},
+
+  { name: 'layout: the canvas owns the window', responsive: true,
+    run: async (p, c, size) => {
+      const box = await p.locator('canvas').first().boundingBox();
+      c.is(!!box && Math.abs(box.width - size.width) < 2, true,
+        `canvas spans the viewport width (${box && Math.round(box.width)} of ${size.width})`);
+      c.is(!!box && box.height > size.height * 0.6, true,
+        'canvas takes most of the height');
+    }},
 ];
 
 /* ------------------------------------------------------------------ *
  * runner
  * ------------------------------------------------------------------ */
 const SIZES = [
-  { tag: 'desktop', width: 1400, height: 900 },
-  { tag: 'phone', width: 390, height: 844, mobileOnly: true },
+  { tag: 'desktop', width: 1400, height: 900, full: true },
+  { tag: 'laptop', width: 1280, height: 720 },
+  { tag: 'tabletP', width: 820, height: 1180, touch: true },
+  { tag: 'tabletL', width: 1180, height: 820, touch: true },
+  { tag: 'phone', width: 390, height: 844, touch: true },
+  { tag: 'phoneL', width: 844, height: 390, touch: true },
+  { tag: 'phoneSm', width: 320, height: 568, touch: true },
 ];
 
 const run = async () => {
@@ -410,8 +539,12 @@ const run = async () => {
   for (const size of SIZES) {
     for (const sc of SCENARIOS) {
       if (only && !sc.name.includes(only)) continue;
-      if (size.mobileOnly && !sc.mobile) continue;
-      const page = await browser.newPage({ viewport: { width: size.width, height: size.height } });
+      if (!size.full && !(sc.mobile || sc.responsive)) continue;
+      const page = await browser.newPage({
+        viewport: { width: size.width, height: size.height },
+        hasTouch: !!size.touch, isMobile: !!size.touch && size.width < 900,
+        deviceScaleFactor: size.touch ? 2 : 1,
+      });
       const errs = [];
       page.on('pageerror', e => errs.push(String(e).split('\n')[0]));
       page.on('console', m => {
@@ -421,7 +554,7 @@ const run = async () => {
       try {
         await page.goto(URL, { waitUntil: 'networkidle' });
         await page.waitForTimeout(3000);
-        await sc.run(page, c);
+        await sc.run(page, c, size);
       } catch (e) {
         c.fails.push(`threw: ${String(e).split('\n')[0]}`);
       }

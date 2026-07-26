@@ -17,6 +17,7 @@ import { WIND } from '@/lib/solvers/airflow';
 import Furniture from './Furniture';
 import Exterior, { Garden } from './Exterior';
 import PlanOverlay, { Beams } from './PlanOverlay';
+import PlanSheet from './PlanSheet';
 import Airflow from './Airflow';
 import Placed, { PlacementPlane } from './Placed';
 import Dimensions from './Dimensions';
@@ -652,6 +653,7 @@ export default function Scene() {
       <ThermalLabels />
       <Dimensions />
       <PlanOverlay />
+      <PlanSheet />
       <PlacementPlane />
       <LightingOverlay /><HvacOverlay /><WifiOverlay /><AudioOverlay /><Airflow />
       <TargetRig />

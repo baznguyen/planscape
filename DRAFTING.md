@@ -238,3 +238,61 @@ its own: a locator that matched several elements, a click on an element below
 the fold of a scrolling sheet whose bounding box was off-screen, and a button
 whose aria-label correctly changes once you are inside the building. A test that
 lies costs more than no test.
+
+## Measure the drawing, do not re-read your notes
+
+Every geometry defect that has reached a render came from checking the model
+against something else I had typed. The trace agreed with the model, the review
+passed, and the stair was still a metre from where the plan put it.
+
+The fix is not more care. It is to make the drawing itself readable by the
+checker — `tools/planwalls.py` pulls wall lines straight out of the vector PDF
+in model metres, and `PlanSheet.tsx` lays the rendered sheet over the model at
+the same scale. Both are described in `PLANS.md`. Neither can be fooled by a
+confident transcription, because neither has read it.
+
+Corollary: **do not fit the scale against the model.** Fitting produced
+28.65 pt/m where the plot scale was 28.3465 — a 1% error, which then shows up as
+a mismatch you will attribute to the model rather than to the ruler.
+
+## A hit target is part of the geometry too
+
+`tools/uat.mjs` now measures every visible control at seven viewport sizes and
+fails anything below the minimum for the pointer in use — 36 px for a finger,
+24 for a mouse — plus anything that runs off the side of the window, any sheet
+taller than the window, and any close control that has gone off screen.
+
+This found things neither of the other harnesses could. A screenshot diff says
+the picture is unchanged; a state assertion says the action fired. Neither says
+that the icon buttons in the top rail were 31 × 25 CSS px, which is fine under a
+mouse and a miss under a thumb.
+
+## Widen a tolerance and you widen the bug
+
+Two rules and one generator carried the same magic number: 350 mm, the thickness
+of a brick veneer wall, used as a box to grow a point by. The moment a room was
+measured to sit 390 mm off its external wall — a change that made the model MORE
+accurate — every window on that wall lit nothing, two bedrooms silently lost all
+of their glazing, and the natural light rule went from pass to major.
+
+A tolerance that encodes a specific wall build-up will break on the first
+building with a different one. Prefer a test that asks the real question:
+probe inward from the wall and see which room you land in; measure the distance
+from the opening to the room rectangle rather than growing the rectangle.
+
+## Three questions about a door beside a stair
+
+The first version of the door-landing rule asked "is the landing inside a
+flight's footprint" and flagged two doors, both wrongly. A point under a rising
+flight can be three different things and only one is a defect:
+
+* the flight is at floor level there — you are at the foot of it, which is where
+  the plan intends you to stand;
+* the flight is high overhead — you walk underneath, which is what the space
+  beside every straight flight is for;
+* the flight is in between — you step onto a tread or put your head through the
+  stringer.
+
+Flights belonging to the floor below do not occupy this floor's space at all.
+Where they break through it they leave a void, and a void is not a room, so the
+"no floor on either side" test already catches a door opening into one.

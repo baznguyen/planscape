@@ -104,13 +104,23 @@ function openingsAreAttached(): RuleFinding[] {
       if (!side) continue;
       const r = ROOMS.find(x => x.id === side);
       if (!r) continue;
-      const near = o.x >= r.x0 - 0.35 && o.x <= r.x1 + 0.35 &&
-                   o.z >= r.z0 - 0.35 && o.z <= r.z1 + 0.35;
-      if (!near) {
+      /**
+       * How far is the opening from the room it claims to serve? Measured to
+       * the rectangle, not against a box grown by a fixed amount — the previous
+       * form allowed 350 mm on each axis independently, which is a brick veneer
+       * wall, and it started failing the moment a room was measured to sit
+       * 390 mm off its external wall. The wall build-up between an opening and
+       * the room behind it is at most half a metre in any house; anything past
+       * that and the room genuinely is somewhere else.
+       */
+      const gap = Math.hypot(
+        Math.max(r.x0 - o.x, 0, o.x - r.x1),
+        Math.max(r.z0 - o.z, 0, o.z - r.z1));
+      if (gap > 0.6) {
         out.push({
           rule: 'geometry/opening-abuts-rooms', severity: 'major',
           title: `Opening ${o.id} does not touch ${r.name}`,
-          detail: `The opening is recorded as joining ${r.name}, but that room's extents do not reach it. The door leads nowhere.`,
+          detail: `The opening is recorded as joining ${r.name}, but that room's extents stop ${(gap * 1000).toFixed(0)} mm short of it. The door leads nowhere.`,
           authority: 'Drafting convention — an opening joins the two spaces either side of it',
           learnedFrom: 'four first floor doors left pointing at rooms that had been moved',
           subject: o.id,
@@ -416,6 +426,136 @@ function reachableOnFoot(): RuleFinding[] {
   return out;
 }
 
+
+/**
+ * Every doorway needs somewhere to stand when you come through it.
+ *
+ * This is the rule that would have caught the entry partition. A wall was
+ * modelled across the entry with a 1,500 cased opening in it, and the opening
+ * discharged directly onto the flank of the staircase — you would step through
+ * and be standing on the bottom riser. Every check that existed said the plan
+ * was fine: the rooms were connected, the door had a room on each side, the
+ * flood fill reached everywhere, because a stair is not a wall and nothing
+ * treated it as an obstruction.
+ *
+ * A landing is 900 mm deep and as wide as the opening, on BOTH sides. That is
+ * the space a person occupies while the door is swinging and they are deciding
+ * where to go. It has to be on the slab, clear of walls, and clear of the
+ * stair — a tread is not a landing.
+ */
+/**
+ * Height of the walking surface of a flight at a point inside its footprint,
+ * measured from the lower floor. The flight rises along its longer axis toward
+ * whichever end the upper space it connects to lies on, so the direction comes
+ * out of the model rather than being asserted per house.
+ */
+function stairSurfaceY(st: typeof STAIRS[number], x: number, z: number): number {
+  const alongX = st.x1 - st.x0 >= st.z1 - st.z0;
+  const a0 = alongX ? st.x0 : st.z0, a1 = alongX ? st.x1 : st.z1;
+  const p = alongX ? x : z;
+  const upper = ROOMS.find(r => r.id === st.connects[1]);
+  // the high end is the end of the run nearer the space the flight arrives in
+  const uc = upper ? (alongX ? (upper.x0 + upper.x1) / 2 : (upper.z0 + upper.z1) / 2) : a1;
+  const risesToA1 = Math.abs(uc - a1) <= Math.abs(uc - a0);
+  const t = Math.min(1, Math.max(0, (p - a0) / Math.max(0.01, a1 - a0)));
+  const rise = GEOM.F1Y * (risesToA1 ? t : 1 - t);
+  return st.fromFloor === 0 ? rise : GEOM.F1Y + rise;
+}
+
+function doorLandings(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  const DEPTH = 0.9;
+  for (const o of ALL_OPENINGS) {
+    if (o.sill > 0.35) continue;                       // a window needs no landing
+    const w = WALLS.find(x => x.id === o.wallId);
+    if (!w) continue;
+    const dx = w.x2 - w.x1, dz = w.z2 - w.z1;
+    const L = Math.hypot(dx, dz) || 1;
+    const nx = -dz / L, nz = dx / L;                   // wall normal
+    const sides = [1, -1].map(sgn => {
+      const cx = o.x + nx * sgn * DEPTH * 0.55;
+      const cz = o.z + nz * sgn * DEPTH * 0.55;
+      const outside = !ROOMS.some(r => r.floor === o.floor && !r.void &&
+        cx >= r.x0 - 0.05 && cx <= r.x1 + 0.05 && cz >= r.z0 - 0.05 && cz <= r.z1 + 0.05);
+      /**
+       * A landing inside a flight's footprint is not automatically wrong, and
+       * the first version of this rule got that badly wrong in both directions.
+       *
+       * Three different things can be true of a point under a rising flight,
+       * and only one of them is a defect:
+       *   · the flight is at or near floor level there — you are standing at
+       *     the foot of it, which is exactly where the plan intends you to be;
+       *   · the flight is high overhead — you walk underneath, which is what
+       *     the space beside every straight flight in every house is for;
+       *   · the flight is somewhere in between — you would step onto a tread or
+       *     put your head through the underside of the stringer.
+       *
+       * Only the middle case is the fault. Flights belonging to the floor BELOW
+       * this one do not occupy this floor's space at all; where they break
+       * through it they leave a void, and a void is not a room, so the "no
+       * floor on either side" test below already catches a door opening into
+       * one. Testing them here flagged a bedroom door two floors from any
+       * tread.
+       */
+      let step = 0;
+      for (const st of STAIRS) {
+        if (st.fromFloor !== o.floor) continue;
+        if (cx < st.x0 - 0.1 || cx > st.x1 + 0.1 || cz < st.z0 - 0.1 || cz > st.z1 + 0.1) continue;
+        const d = stairSurfaceY(st, cx, cz) - (o.floor === 0 ? 0 : GEOM.F1Y);
+        if (Math.abs(d) > Math.abs(step)) step = d;
+      }
+      return { sgn, outside, step, cx, cz };
+    });
+    const RISER = 0.19;                                 // NCC Vol Two, max riser
+    const HEAD = 2.0;                                   // NCC Vol Two, min clear height
+    const SOFFIT = 0.25;                                // treads plus stringer
+    const bad = sides.find(s => s.step > RISER && s.step < HEAD + SOFFIT);
+    if (bad) {
+      out.push({
+        rule: 'circulation/door-landing', severity: 'major',
+        title: `${o.id} opens straight onto a stair`,
+        detail: `The 900 mm landing on one side of this ${o.kind} sits at (${bad.cx.toFixed(2)}, ${bad.cz.toFixed(2)}), where the flight is ${(bad.step * 1000).toFixed(0)} mm above the floor — ${(bad.step / RISER).toFixed(1)} risers, too high to step onto and too low to walk under. Either the opening moves clear of the flight or the wall should not be there.`,
+        authority: 'NCC Volume Two Part 11.2 and AS 1428.1 — landings at doorways and at the head and foot of a flight',
+        learnedFrom: 'a partition modelled across the entry whose opening discharged onto the staircase',
+        subject: o.id,
+      });
+      continue;
+    }
+    // Passing under a flight is fine, but the clear height is what makes it
+    // fine, and at a doorway you are walking through at full stride.
+    const tight = sides.find(s => s.step >= HEAD + SOFFIT && s.step - SOFFIT < 2.1);
+    if (tight) {
+      out.push({
+        rule: 'circulation/door-landing', severity: 'minor',
+        title: `${o.id} passes under the stair with ${((tight.step - SOFFIT) * 1000).toFixed(0)} mm headroom`,
+        detail: `The landing outside this ${o.kind} is beneath the flight, which clears it by about ${((tight.step - SOFFIT) * 1000).toFixed(0)} mm once treads and stringer are allowed for. That meets the 2,000 mm minimum but is below the 2,100 mm you would want at a door you walk through at pace. Worth confirming the stringer depth with the stair supplier.`,
+        authority: 'NCC Volume Two Part 11.2 — 2,000 mm clear above a stairway; H1D7 — 2,100 mm in habitable rooms',
+        subject: o.id,
+      });
+      continue;
+    }
+    // both sides outside the building is a modelling error, not a design one
+    if (sides.every(s => s.outside)) {
+      out.push({
+        rule: 'circulation/door-landing', severity: 'minor',
+        title: `${o.id} has no floor on either side`,
+        detail: 'Neither 900 mm landing falls inside a room on this level, which usually means the opening has drifted off its wall.',
+        authority: 'NCC Volume Two — access and egress',
+        subject: o.id,
+      });
+    }
+  }
+  if (!out.length) {
+    out.push({
+      rule: 'circulation/door-landing', severity: 'pass',
+      title: 'Every doorway has somewhere to stand',
+      detail: 'A 900 mm landing on both sides of every door and cased opening falls on the slab, clear of the walls and clear of the stair flights.',
+      authority: 'NCC Volume Two Part 11.2 and AS 1428.1 — landings at doorways',
+    });
+  }
+  return out;
+}
+
 /** Run the whole rule set. */
 export function runDraftingRules(): RuleFinding[] {
   return [
@@ -428,5 +568,6 @@ export function runDraftingRules(): RuleFinding[] {
     ...ceilingHeights(),
     ...roomProportions(),
     ...reachableOnFoot(),
+    ...doorLandings(),
   ];
 }

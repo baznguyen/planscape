@@ -774,3 +774,40 @@ main{position:fixed;inset:0}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
 @media (max-width: 780px){ .toast{top:auto;bottom:200px;left:12px;right:12px;transform:none;max-width:none}
   @keyframes toastIn{from{opacity:0}to{opacity:1}} }
+
+/* Baseline minimums for a fine pointer. Even with a mouse, a 21 px control is
+   a control someone will miss on the second try. */
+.seg button{min-height:24px}
+.sun select{min-height:26px}
+.txt{min-height:30px}
+.tbTabs button{min-height:26px}
+
+/* ============================================================
+   Coarse pointer — a finger is not a mouse
+
+   Every icon control in the top rail was 31 x 25 CSS px. On a 1400 px window
+   with a mouse that is fine; under a thumb it is a miss. The automated UI pass
+   in tools/uat.mjs measures every visible control at seven viewport sizes and
+   fails anything below the minimum for the pointer in use, which is how these
+   were found — a screenshot diff cannot see a hit target.
+
+   36 px is the figure. AS/ISO 9241-411 and the mobile platform guidelines all
+   land between 7 and 10 mm for a finger; at the nominal 96 dpi of a CSS pixel
+   36 px is 9.5 mm, at the top of that band without turning a dense professional
+   tool into a phone app.
+============================================================ */
+@media (pointer: coarse) {
+  .seg button{min-height:36px}
+  .seg.ico button{min-width:36px;min-height:36px;padding:6px 9px}
+  .play{width:36px;height:36px;font-size:12px}
+  .sun select{min-height:36px}
+  .amb{min-height:36px}
+  .ambInline .amb{width:36px;height:36px}
+  .toolTab,.reviewTab,.railToggle{width:42px;height:42px}
+  .tbTabs button{min-height:36px}
+  .btn{min-height:38px}
+  .rowbtn{min-height:38px}
+  .swatch{min-height:36px}
+  .txt{min-height:40px}
+  .sheetX{width:40px;height:40px}
+}

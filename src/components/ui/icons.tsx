@@ -94,6 +94,10 @@ export const OVERLAY_ICON: Record<string, ReactElement> = {
   elec: (<S size={15}><path d="M13.5 2.5L5 13.5h5.5L9.5 21.5 19 10h-5.8z" /></S>),
   plan: (<S size={15}><rect x="3" y="3.5" width="18" height="17" rx="1.4" strokeDasharray="3 2.2" />
     <path d="M3 11h8M11 3.5v17" strokeDasharray="3 2.2" opacity=".7" /></S>),
+  /** the stacked-sheets mark everyone already reads as "layers" */
+  layers: (<S size={17}><path d="M12 2.6L2.6 7.3 12 12l9.4-4.7z" />
+    <path d="M2.6 12.2L12 16.9l9.4-4.7" opacity=".78" />
+    <path d="M2.6 16.9L12 21.6l9.4-4.7" opacity=".5" /></S>),
   openAll: (<S size={15}><path d="M4 20V6.5L14 4v16z" /><path d="M14 20h5.5V7.5L14 6" opacity=".5" />
     <path d="M11.5 12h.01" /><path d="M18 12l3-3m0 0h-2.4M21 9v2.4" opacity=".8" /></S>),
   closeAll: (<S size={15}><path d="M6 20V6.5L16 4v16z" /><path d="M16 20h3.5V7.5L16 6" opacity=".5" />
