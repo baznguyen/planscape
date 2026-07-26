@@ -191,3 +191,50 @@ confirm the change was intended, and re-baseline with `--base`.
 The rule this encodes: **a model is not verified by checking the thing you just
 changed.** Geometry that only one camera can see will break, quietly, in the
 direction nobody is looking.
+
+## A screenshot cannot tell you whether a button works
+
+"I can't add an asset" was real, intermittent, and passed every check I had.
+
+The cause was a stale closure. `Floors()` read `placing` from its render scope
+and decided, on click, whether the tap was a placement or a room selection.
+Arming an asset closes the sheet and mounts the placement plane — and if the tap
+on the model arrived before that mesh had re-rendered with the new value,
+`placing` was still null in the closure. So the tap SELECTED THE ROOM instead of
+placing, called `stopPropagation` so the catcher plane never saw it, and left
+the asset armed with no error. Tap again and it worked.
+
+That is the worst shape a bug can have: intermittent, silent, and invisible to
+a picture-diff, because the picture really was identical. `tools/views.mjs`
+passed it every time.
+
+Two fixes, one of them structural.
+
+**Read state at event time, not from the closure.** Any handler that branches on
+store state now calls `useStore.getState()` inside the handler. A render closure
+is a snapshot; an event is a moment. When those two disagree the user loses.
+
+**`tools/uat.mjs`.** Thirty-four scenarios across desktop and phone that drive
+every control with a real pointer event and then assert the RESULT against the
+store — `speakers` went 0 → 1, not "a chip appeared". Two rules keep it honest:
+nothing calls a store action directly, because "the action works when called" is
+not the claim under test — "the control reaches the action" is; and every
+assertion reads state, never appearance.
+
+It immediately found three more:
+
+- **A wall-mounted asset refused any tap more than 3 m from a wall.** In an
+  open-plan house that makes the middle of the living space untappable. The
+  distance was never the question — a wall mount snaps to the nearest wall.
+- **The refusal was invisible.** `placeError` rendered only inside the Add tab,
+  and arming an asset closes that sheet. The one message explaining why nothing
+  happened was behind the panel the user had just dismissed.
+- **The Paint tab opened on Room scope with no room selected**, which disables
+  every colour control on it — swatches, custom entry, all of it — behind one
+  small grey line of hint text.
+
+The harness also has to be honest about itself. Three of its early failures were
+its own: a locator that matched several elements, a click on an element below
+the fold of a scrolling sheet whose bounding box was off-screen, and a button
+whose aria-label correctly changes once you are inside the building. A test that
+lies costs more than no test.

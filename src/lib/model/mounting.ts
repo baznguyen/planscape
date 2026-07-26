@@ -66,9 +66,19 @@ export function resolveMount(
       const p = projectOnWall(w, x, z);
       if (!best || p.dist < best.p.dist) best = { w, p };
     }
-    if (!best || best.p.dist > 3.0) {
+    /**
+     * The old rule refused any tap more than 3 m from a wall. In an open-plan
+     * house that makes the middle of the living space untappable: you aim at
+     * the spot you want a panel heater and nothing happens. The distance was
+     * never the question — a wall mount snaps to the nearest wall wherever you
+     * aim, the way it does in every drawing tool.
+     *
+     * The only genuine refusal is standing outside the building, where there is
+     * no room and therefore no wall to fix to.
+     */
+    if (!best || !room) {
       return { x, z, y: base + (spec.mountHeight ?? 1.2), rot: 0, boundaries: 1, room: room?.id ?? null,
-        problem: 'No wall within 3 m — a wall-mounted asset needs a wall to fix to.' };
+        problem: 'Tap inside a room — a wall-mounted asset needs a wall to fix to.' };
     }
     const { w, p } = best;
     const dx = w.x2 - w.x1, dz = w.z2 - w.z1;

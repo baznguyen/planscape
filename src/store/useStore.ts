@@ -295,3 +295,34 @@ export const useStore = create<S>((set, get) => ({
     const n = { ...s.finishes }; delete n[roomId]; return { finishes: n };
   }),
 }));
+
+/**
+ * A read-only handle for the automated UAT.
+ *
+ * Every action in the test suite goes through a real click on a real control —
+ * that is the whole point of it. But asserting the RESULT through the DOM alone
+ * means writing tests that pass because a label happens to say the right thing,
+ * which is how a broken placement flow survived a green screenshot run. This
+ * exposes the state to read, and nothing to write.
+ */
+if (typeof window !== 'undefined') {
+  (window as unknown as { __sitescape?: unknown }).__sitescape = {
+    get: () => {
+      const s = useStore.getState();
+      return {
+        view: s.view, floor: s.floor, drawer: s.drawer, placing: s.placing,
+        placeError: s.placeError, selectedRoom: s.selectedRoom, eyeLevel: s.eyeLevel,
+        showRoof: s.showRoof, ambience: s.ambience, month: s.month,
+        minutes: Math.round(s.minutes), playing: s.playing, hvacOn: s.hvacOn,
+        overlays: { ...s.overlays },
+        openCount: s.openIds.size,
+        counts: {
+          items: s.items.length, speakers: s.speakers.length,
+          aps: s.aps.length, lights: s.lights.length, paints: s.paints.length,
+        },
+        palette: s.palette,
+        thermalRooms: Object.keys(s.thermal).length,
+      };
+    },
+  };
+}

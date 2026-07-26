@@ -167,6 +167,17 @@ export default function Ui() {
         </div>
       </Sheet>
 
+      {/* A refusal has to appear where the eye is. placeError used to render
+          only inside the Add tab — and arming an asset CLOSES the sheet, so the
+          one message explaining why nothing happened was behind the panel the
+          user had just dismissed. It looked exactly like a dead button. */}
+      {s.placeError && (
+        <div className="toast" role="status" onClick={() => s.clearPlaceError()}>
+          <b>Not placed</b>{s.placeError}
+          <span className="x">Dismiss</span>
+        </div>
+      )}
+
       <div className="statStrip">
         <span><i>Outdoor</i><b>{s.outdoorT.toFixed(1)} °C</b></span>
         <span><i>Season</i><b>{seasonOf(s.month)} · {WIND[s.month][0]}°</b></span>

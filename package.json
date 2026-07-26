@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test tests/"
+    "test": "node --test tests/*.mjs",
+    "uat": "node tools/uat.mjs",
+    "views": "node tools/views.mjs",
+    "check": "npm run build && node tools/uat.mjs && node tools/views.mjs"
   },
   "dependencies": {
     "@react-three/drei": "9.108.4",

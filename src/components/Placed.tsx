@@ -273,6 +273,8 @@ export function PlacementPlane() {
         position={[GEOM.LEN / 2, yOf(floor) + 0.08, GEOM.WID / 2]}
         onClick={e => {
           e.stopPropagation();
+          // same reasoning as Floors: the armed state is read at event time
+          if (!useStore.getState().placing) return;
           const { x, z } = e.point;
           // No fallback room. A tap on the apron outside the building used to be
           // filed into the living room, so a heater dropped on the lawn heated

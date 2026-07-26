@@ -758,3 +758,19 @@ main{position:fixed;inset:0}
 @media (max-width: 780px){
   body.sheetOpen .walkPad{opacity:0 !important;pointer-events:none}
 }
+
+
+/* A refusal, over the model, where you are looking when it happens. */
+.toast{position:absolute;z-index:18;left:50%;transform:translateX(-50%);top:112px;
+  max-width:min(420px,calc(100vw - 32px));cursor:pointer;
+  background:rgba(28,20,14,.9);color:#ffe9cf;border:1px solid rgba(255,190,120,.35);
+  border-radius:12px;padding:10px 14px;font-size:12.5px;line-height:1.45;
+  box-shadow:0 12px 34px rgba(16,22,32,.28);backdrop-filter:blur(14px);
+  animation:toastIn .18s ease-out}
+.toast b{display:block;font-size:10.5px;font-weight:700;letter-spacing:.9px;
+  text-transform:uppercase;color:#ffbe78;margin-bottom:3px}
+.toast .x{display:block;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;color:rgba(255,233,207,.6)}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (max-width: 780px){ .toast{top:auto;bottom:200px;left:12px;right:12px;transform:none;max-width:none}
+  @keyframes toastIn{from{opacity:0}to{opacity:1}} }

@@ -28,7 +28,17 @@ const PAGE = 180;
  */
 export default function PaintTab() {
   const s = useStore();
-  const [scope, setScope] = useState<PaintScope>('room');
+  /**
+   * Default to the whole house, not to a room.
+   *
+   * Room scope needs a selected room, and with none selected EVERY colour
+   * control on the tab is disabled — the swatches, the custom entry, all of it —
+   * with only a small grey "Tap a room first" to explain a tab that appears
+   * entirely dead. Opening on House means a colour always applies; narrowing to
+   * a room is then a deliberate act rather than a precondition nobody told you
+   * about.
+   */
+  const [scope, setScope] = useState<PaintScope>('house');
   const [systemId, setSystemId] = useState('dulux');
   const file = useRef<HTMLInputElement>(null);
   const [repeat, setRepeat] = useState(0.7);

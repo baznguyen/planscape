@@ -47,7 +47,7 @@ function swatch(url: string, repX: number, repY: number): THREE.Texture {
   return t;
 }
 function Floors() {
-  const { floor, overlays, thermal, setHover, setSelected, hoverRoom, finishes, placing, placeAt } = useStore();
+  const { floor, overlays, thermal, setHover, hoverRoom, finishes } = useStore();
   return <>{ROOMS.filter(r => r.floor === floor && !r.void).map(r => {
     const A = roomArea(r), c = roomCentre(r);
     const w = r.x1 - r.x0, d = r.z1 - r.z0;
@@ -63,10 +63,24 @@ function Floors() {
         onPointerOut={() => setHover(null)}
         onClick={e => {
           e.stopPropagation();
-          // while something is armed the floor IS the placement target: it sits
-          // above the catcher plane, so it would otherwise swallow every tap
-          if (placing) placeAt(floor, e.point.x, e.point.z, r.id);
-          else setSelected(r.id);
+          /**
+           * Read the armed state at EVENT TIME, not from the render closure.
+           *
+           * This handler is the reason "I can't add anything" was intermittent.
+           * Arming an asset closes the sheet and mounts the placement plane; if
+           * the tap on the model arrived before this mesh had re-rendered with
+           * the new value, `placing` was still null in the closure — so the tap
+           * SELECTED THE ROOM instead of placing, stopped propagation so the
+           * catcher plane never saw it, and left the asset armed with no error.
+           * Tap again and it worked, which is exactly what makes a bug like this
+           * so infuriating to report.
+           *
+           * The floor IS the placement target while something is armed: it sits
+           * above the catcher plane, so it would otherwise swallow every tap.
+           */
+          const st = useStore.getState();
+          if (st.placing) st.placeAt(st.floor, e.point.x, e.point.z, r.id);
+          else st.setSelected(r.id);
         }}>
         <boxGeometry args={[w, 0.06, d]} />
         <meshStandardMaterial color={map ? '#ffffff' : col} map={map} roughness={0.9}
