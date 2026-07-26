@@ -514,15 +514,25 @@ function reachableOnFoot(): RuleFinding[] {
  * measured from the lower floor. The flight rises along its longer axis toward
  * whichever end the upper space it connects to lies on, so the direction comes
  * out of the model rather than being asserted per house.
+ *
+ * That directionality is read off `connects[0]` — the room the flight departs
+ * FROM — not the room it arrives at. It used to be the other way round, and
+ * broke the day Landing (the arrival room) was corrected to its real width:
+ * Landing is 11 m wide against the flight's 4.3 m, sitting well inside it
+ * rather than at one edge, so its centroid stopped being a reliable stand-in
+ * for "which end is nearer" the moment the room's shape changed for a reason
+ * that had nothing to do with the stair. The departure room (the ground floor
+ * hall here) is small and hugs the foot of the flight, so its centroid keeps
+ * pointing at the low end regardless of what the far room's footprint does.
  */
 function stairSurfaceY(st: typeof STAIRS[number], x: number, z: number): number {
   const alongX = st.x1 - st.x0 >= st.z1 - st.z0;
   const a0 = alongX ? st.x0 : st.z0, a1 = alongX ? st.x1 : st.z1;
   const p = alongX ? x : z;
-  const upper = ROOMS.find(r => r.id === st.connects[1]);
-  // the high end is the end of the run nearer the space the flight arrives in
-  const uc = upper ? (alongX ? (upper.x0 + upper.x1) / 2 : (upper.z0 + upper.z1) / 2) : a1;
-  const risesToA1 = Math.abs(uc - a1) <= Math.abs(uc - a0);
+  const lower = ROOMS.find(r => r.id === st.connects[0]);
+  // the low end is the end of the run nearer the space the flight departs from
+  const lc = lower ? (alongX ? (lower.x0 + lower.x1) / 2 : (lower.z0 + lower.z1) / 2) : a0;
+  const risesToA1 = Math.abs(lc - a1) >= Math.abs(lc - a0);
   const t = Math.min(1, Math.max(0, (p - a0) / Math.max(0.01, a1 - a0)));
   const rise = GEOM.F1Y * (risesToA1 ? t : 1 - t);
   return st.fromFloor === 0 ? rise : GEOM.F1Y + rise;
