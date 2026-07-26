@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "npm run build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "check (build + uat + views)",
+      "type": "shell",
+      "command": "npm run check",
+      "problemMatcher": []
+    },
+    {
+      "label": "unit tests",
+      "type": "shell",
+      "command": "npm test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Redline — drafting review",
+      "type": "shell",
+      "command": "printf \"const { runDraftingRules } = await import('./src/lib/review/draftingRules.ts');\\nfor (const f of runDraftingRules()) console.log(f.severity.padEnd(9), f.rule.padEnd(30), f.title);\\n\" > .redline.mts && npx tsx ./.redline.mts; rm -f .redline.mts",
+      "problemMatcher": []
+    },
+    {
+      "label": "walldiff — model vs sheet",
+      "type": "shell",
+      "command": "python3 tools/walldiff.py \"${input:sheet}\" --worst 15",
+      "problemMatcher": []
+    },
+    {
+      "label": "re-baseline views",
+      "type": "shell",
+      "command": "node tools/views.mjs --base",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "sheet",
+      "type": "promptString",
+      "description": "Path to the plan PDF",
+      "default": "samples/5792-25 - Prelim Plan SK1 Lot 43B Campbell Street Fairfield East.pdf"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "anthropic.claude-code",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "editorconfig.editorconfig",
+    "yzhang.markdown-all-in-one",
+    "ms-playwright.playwright"
+  ],
+  "unwantedRecommendations": []
+}

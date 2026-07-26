@@ -1,0 +1,15 @@
+# Local tooling only — never bundled into the app.
+#
+# These read the architectural PDF: extract wall lines and written notes in
+# model metres, and export the ink-only plan images the overlay uses.
+#
+#   pip install -r tools/requirements.txt
+#
+# Licence note: PyMuPDF is AGPL. It is used here as a developer tool that runs
+# on a workstation and produces committed data files; it is not linked into,
+# shipped with, or served by the application. If that ever changes, swap it for
+# pdfminer.six (MIT) — which also preserves Form XObjects as LTFigure, useful if
+# symbol instancing ever matters.
+pymupdf>=1.24
+pillow>=10.0
+numpy>=1.26
