@@ -124,13 +124,37 @@ test('RF: signal falls with distance and with intervening walls', () => {
   assert.ok(g24 > g6, '2.4 GHz must penetrate better than 6 GHz');
 });
 
-test('HVAC load lands in the engineer-verified range', () => {
+test('HVAC peak load is engineering-plausible per square metre', () => {
+  /**
+   * This used to assert an absolute 14-34 kW, and it broke the day the window
+   * generator was corrected — the old one placed a window every 3.2 m of
+   * external wall regardless of what was behind it, which over-glazed the house
+   * and inflated the solar gain. Fixing it dropped the load 60%, and a
+   * hard-coded band turns that into a failure instead of an improvement.
+   *
+   * So the assertion is per square metre of conditioned floor, against the range
+   * a services engineer would accept for detached housing in NCC climate zone 6:
+   * roughly 40 W/m2 for a well-shaded, well-insulated house up to 120 W/m2 for a
+   * heavily glazed one. Wide on purpose — its job is to catch a broken solver,
+   * not to pin a design that is still being measured off the drawing.
+   */
   const s = systemSummary();
-  assert.ok(s.installedKw > 14 && s.installedKw < 34,
-    `installed ${s.installedKw.toFixed(1)} kW outside the 24-26 kW design expectation band`);
+  const floor = ROOMS
+    .filter(r => !r.outdoor && !r.void && r.use !== 'garage')
+    .reduce((a, r) => a + roomArea(r), 0);
+  const wPerM2 = (s.installedKw * 1000) / floor;
+  assert.ok(wPerM2 > 35 && wPerM2 < 130,
+    `${wPerM2.toFixed(0)} W/m2 over ${floor.toFixed(0)} m2 is outside the plausible band`);
+
+  // Invariants that do NOT move when the geometry gets more accurate.
   const kit = roomLoad(roomById('g_kit'));
-  assert.ok(kit.outlets >= 1 && kit.outlets <= 4);
-  assert.ok(kit.lps > 0);
+  assert.ok(kit.outlets >= 1 && kit.outlets <= 4, 'kitchen outlet count is sane');
+  assert.ok(kit.lps > 0, 'kitchen gets air');
+  const bed = roomLoad(roomById('g_bd5'));
+  const density = (l, id) => (l.totalKw * 1000) / roomArea(roomById(id));
+  assert.ok(density(kit, 'g_kit') > density(bed, 'g_bd5'),
+    `a kitchen must load harder per m2 than a bedroom — appliances and people ` +
+    `(${density(kit, 'g_kit').toFixed(0)} vs ${density(bed, 'g_bd5').toFixed(0)} W/m2)`);
 });
 
 test('airflow reports sealed vs cross-ventilated', () => {

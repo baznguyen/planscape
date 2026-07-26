@@ -1,6 +1,6 @@
 /** Sabine/Eyring RT60 from actual surface materials, furniture and open apertures. */
 import { ROOMS, WALLS, ALL_OPENINGS, roomArea, roomHeight, roomVolume, roomById } from '../model/building';
-import { assetById } from '@/lib/model/assets';
+import { assetById } from '../model/assets';
 import type { Room, Opening } from '../model/building';
 import { MATERIALS, FIXTURES, C_SOUND, type Band } from '../model/materials';
 

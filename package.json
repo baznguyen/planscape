@@ -10,7 +10,8 @@
     "uat": "node tools/uat.mjs",
     "views": "node tools/views.mjs",
     "check": "npm run build && node tools/uat.mjs && node tools/views.mjs",
-    "setup": "npm install && npx playwright install chromium"
+    "setup": "npm install && npx playwright install chromium",
+    "pretest": "tsc --outDir dist-test --module commonjs --target ES2020 --moduleResolution node --skipLibCheck --esModuleInterop src/lib/model/*.ts src/lib/solvers/*.ts src/lib/standards/*.ts src/lib/standards/packs/*.ts src/lib/planning/*.ts src/lib/validation/*.ts src/lib/ve/*.ts src/lib/collab/*.ts"
   },
   "dependencies": {
     "@react-three/drei": "9.108.4",

@@ -1,6 +1,6 @@
 /** Illuminance via the lumen method, with UF derived from room index + real surface reflectances. */
 import { ROOMS, roomArea, roomHeight, roomById } from '../model/building';
-import { assetById } from '@/lib/model/assets';
+import { assetById } from '../model/assets';
 import type { Room } from '../model/building';
 import { MATERIALS } from '../model/materials';
 

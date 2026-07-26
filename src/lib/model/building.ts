@@ -371,16 +371,36 @@ export function generateWindows(): Opening[] {
       // 600 mm covers any residential wall build-up; beyond that the room is
       // simply not on this wall
       if (off > 0.6) continue;
-      const a = Math.max(t0, REVEAL), b = Math.min(t1, L - REVEAL);
-      if (b - a < 1.2) continue;                        // no room for a window
+      /**
+       * Place it in the free part of the frontage, not the middle of it.
+       *
+       * The first version put the window at the midpoint and then threw it away
+       * if a modelled door was anywhere near. On this house the alfresco slider
+       * is 3.6 m wide and straddles two rooms, so it suppressed the living
+       * room's only west window entirely — the room ended up with glazing on one
+       * orientation, no cross ventilation, and no way to tell from the model
+       * that anything was missing. A wide door belonging to the room next door
+       * should not deny this room its glass; it should just move it along the
+       * wall, which is what a draftsperson does.
+       */
+      let free: [number, number][] = [[Math.max(t0, REVEAL), Math.min(t1, L - REVEAL)]];
+      for (const o of OPENINGS) {
+        if (o.wallId !== w.id) continue;
+        const ot = (o.x - w.x1) * ux + (o.z - w.z1) * uz;
+        const lo = ot - o.w / 2 - 0.3, hi = ot + o.w / 2 + 0.3;
+        free = free.flatMap(([s0, s1]) =>
+          hi <= s0 || lo >= s1 ? [[s0, s1] as [number, number]]
+            : [[s0, Math.min(s1, lo)] as [number, number],
+               [Math.max(s0, hi), s1] as [number, number]]);
+      }
+      const [a, b] = free.reduce((best, g) => (g[1] - g[0] > best[1] - best[0] ? g : best),
+                                 [0, -1] as [number, number]);
+      if (b - a < 1.2) continue;                        // no clear run for a window
       const t = (a + b) / 2;
       const x = w.x1 + ux * t, z = w.z1 + uz * t;
       // sized towards 10% of the floor, capped by the frontage on offer
       const want = ((r.x1 - r.x0) * (r.z1 - r.z0) * 0.11) / HEAD;
       const width = Math.min(Math.max(want, 0.9), b - a - 0.4, 3.0);
-      const clash = OPENINGS.some(o => o.wallId === w.id &&
-        Math.abs((o.x - w.x1) * ux + (o.z - w.z1) * uz - t) < (o.w + width) / 2 + 0.3);
-      if (clash) continue;
       out.push(O(`win_${w.id}_${i++}`, w.floor, w.id, x, z, width, HEAD, SILL,
         'window', 'glazingSingle', 0.45, r.id, null, w.orient));
     }
