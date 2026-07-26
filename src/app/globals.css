@@ -64,6 +64,11 @@ main{position:fixed;inset:0}
 .rates button{cursor:pointer;border:0;background:transparent;color:var(--ink3);border-radius:99px;
  width:26px;height:22px;display:flex;align-items:center;justify-content:center;padding:0}
 .rates button.on{background:var(--ink);color:#fff}
+.openings{display:inline-flex;gap:1px;background:var(--sf);border:1px solid var(--ln);border-radius:99px;padding:1px;flex:none}
+.openings button{cursor:pointer;border:0;background:transparent;color:var(--ink3);border-radius:99px;
+ width:26px;height:22px;display:flex;align-items:center;justify-content:center;padding:0}
+.openings button svg{width:14px;height:14px}
+.openings button.on{background:var(--ink);color:#fff}
 .sun select{border:0;background:transparent;font:inherit;font-weight:600;font-size:11px;width:52px;padding:0}
 .clock{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;min-width:42px}
 .sun input[type=range]{flex:1;min-width:110px;accent-color:var(--ac);height:3px}
@@ -819,4 +824,5 @@ main{position:fixed;inset:0}
   .sheetX{width:40px;height:40px}
   .play{width:36px;height:36px}
   .rates button{width:36px;height:34px}
+  .openings button{width:36px;height:34px}
 }

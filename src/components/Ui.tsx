@@ -206,18 +206,6 @@ export default function Ui() {
           </>
         )}
 
-        <div className="sec">Doors & windows</div>
-        <div className="tileGrid">
-          <button className="tile" aria-label="Open every door and window"
-            onClick={() => s.setAllOpenings(true)}>
-            <i>{OVERLAY_ICON.openAll}</i><span>Open all · {openCount}</span></button>
-          <button className="tile" aria-label="Close every door and window"
-            onClick={() => s.setAllOpenings(false)}>
-            <i>{OVERLAY_ICON.closeAll}</i><span>Close all</span></button>
-          <button className={`tile ${s.hvacOn ? 'on' : ''}`} aria-label="Air conditioning"
-            aria-pressed={s.hvacOn} onClick={() => s.setHvac(!s.hvacOn)}>
-            <i>{OVERLAY_ICON.hvac}</i><span>Air con</span></button>
-        </div>
       </Sheet>
 
       {/* A refusal has to appear where the eye is. placeError used to render
@@ -242,6 +230,17 @@ export default function Ui() {
       <footer className="bar sun">
         <button className="play" aria-label={s.playing ? 'Pause the time lapse' : 'Play the time lapse'}
           onClick={s.togglePlay}>{s.playing ? PAUSE_ICON : RATE_ICON[0]}</button>
+        {/* Openings, moved here from a menu buried in the overlay rail — the
+            same bar you're already watching to see a shadow move is the one
+            you want to open a window from, not a separate drawer. */}
+        <span className="openings" role="group" aria-label="Doors and windows">
+          <button aria-label={`Open every door and window · ${openCount} currently open`}
+            onClick={() => s.setAllOpenings(true)}>{OVERLAY_ICON.openAll}</button>
+          <button aria-label="Close every door and window"
+            onClick={() => s.setAllOpenings(false)}>{OVERLAY_ICON.closeAll}</button>
+          <button className={s.hvacOn ? 'on' : ''} aria-label="Air conditioning"
+            aria-pressed={s.hvacOn} onClick={() => s.setHvac(!s.hvacOn)}>{OVERLAY_ICON.hvac}</button>
+        </span>
         {s.playing && (
           <span className="rates" role="group" aria-label="Playback rate">
             {RATES.map((r, i) => (
