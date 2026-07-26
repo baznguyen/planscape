@@ -65,9 +65,27 @@ export default function PlanSheet() {
       t.colorSpace = THREE.SRGBColorSpace;
       t.minFilter = THREE.LinearFilter;
       t.generateMipmaps = false;
-      // The plane is laid flat by rotating -90° about X, which sends the plane's
-      // own +Y to world -Z. Left alone that would print the plan back to front
-      // north for south. Not flipping the texture cancels it exactly.
+      /**
+       * Orientation. The plane is laid flat by rotating -90 degrees about X.
+       *
+       * I reasoned this one out and got it backwards, which put the sheet on
+       * the model upside down north for south — the garage printed over
+       * bedroom 5 and vice versa — and it was not obvious, because the building
+       * happens to sit close to the middle of the crop, so the ink still landed
+       * ON the house. Only the text reading backwards gave it away.
+       *
+       * So it is asserted rather than derived: tests/planoverlay.test.mjs picks
+       * a note whose position is known on both the sheet and the model (the
+       * garage slab level, which can only be in the garage) and fails if the
+       * mapping puts it anywhere else. Change the rotation or this flag and
+       * that test tells you immediately.
+       *
+       * The value: the crop's TOP row is the sheet's smallest PDF y, which is
+       * the largest model z — north. Rotating -90 about X sends the plane's own
+       * -Y to world +Z, and -Y is where v = 0 lives, so the image's top row has
+       * to land on v = 0. That is flipY off; three's default of on would put the
+       * top row at v = 1 and print the plan upside down.
+       */
       t.flipY = false;
       setTex(t);
     });

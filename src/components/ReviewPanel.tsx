@@ -31,7 +31,7 @@ export default function ReviewSection() {
 
   return (
     <>
-      <div className="sec">Drawing review</div>
+      <div className="sec">Redline · drawing review</div>
       <div className="stat">
         <span>Conformance</span>
         <b className={tone}>{report.score.toFixed(1)} / 10</b>

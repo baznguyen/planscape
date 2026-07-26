@@ -613,6 +613,25 @@ const REF_ASPECT = 1.6;
 function Rig() {
   const { view, floor, fov } = useStore();
   const { camera, size } = useThree();
+  /**
+   * Camera seam for the automated review.
+   *
+   * The plan overlay's orientation cannot be checked from the model alone —
+   * both are self-consistent when the sheet is printed upside down, which is
+   * exactly how the garage came to be drawn over bedroom 5 and survive a
+   * reading. Redline needs to be able to ask "where on screen is this world
+   * point", compare that against where the sheet's own ink lands, and fail if
+   * they disagree. Read-only, and it costs nothing when nobody is looking.
+   */
+  useEffect(() => {
+    const w = window as unknown as { __sitescape?: Record<string, unknown> };
+    if (!w.__sitescape) return;
+    w.__sitescape.project = (x: number, y: number, z: number) => {
+      const v = new THREE.Vector3(x, y, z).project(camera);
+      return [Math.round((v.x * 0.5 + 0.5) * size.width),
+              Math.round((-v.y * 0.5 + 0.5) * size.height)];
+    };
+  }, [camera, size]);
   useEffect(() => {
     const c = camera as THREE.PerspectiveCamera;
     const base = view === 'plan' ? 55 : fov;

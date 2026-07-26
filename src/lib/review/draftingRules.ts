@@ -1,5 +1,20 @@
 /**
- * Drafting logic.
+ * Redline — the drafting review.
+ *
+ * Named for what a senior architect does to somebody else's drawing: goes over
+ * it in red and says where it is wrong. It has a name because you should be
+ * able to ask what Redline checked, and because a reviewer that is nobody in
+ * particular ends up checking nothing in particular.
+ *
+ * What it always checks, in order:
+ *   1. geometry integrity — overlaps, orphaned openings, walls ending in air;
+ *   2. habitability — light, ceiling heights, room proportions;
+ *   3. circulation — can every room be reached, does every door have a landing;
+ *   4. SCALE — every wall and every room against the line SK1 actually draws.
+ *
+ * Point 4 is the one that was missing for the whole life of the project, and it
+ * is why a staircase sat a metre off its line through three reviews: everything
+ * was being compared against another thing I had typed.
  *
  * Every rule in here exists because a defect got past me and into a render.
  * The pattern each time was the same: the geometry was encoded, but the thing a
@@ -17,6 +32,7 @@ import {
   roomArea, roomHeight, type Room,
 } from '@/lib/model/building';
 import { standable } from '@/lib/model/walkable';
+import { SHEET_LINES } from '@/lib/model/sheetLines';
 
 export type RuleSeverity = 'critical' | 'major' | 'minor' | 'pass';
 export interface RuleFinding {
@@ -556,6 +572,145 @@ function doorLandings(): RuleFinding[] {
   return out;
 }
 
+
+/* ------------------------------------------------------------------ *
+ * 6. Scale — the model against the drawing
+ * ------------------------------------------------------------------ */
+
+/**
+ * Is it to scale?
+ *
+ * This was a judgement call for the whole life of the project, which is another
+ * way of saying nobody was checking. Every geometry defect that reached a render
+ * — the stair a metre off its line, the powder room on the wrong side of the
+ * linen press, the north wall run straight through a step it does not have —
+ * would have been one line of output here.
+ *
+ * SHEET_LINES is every wall face measured off SK1 in model metres (see
+ * PLANS.md). For each wall in the model, find the measured line on the same
+ * axis covering the same stretch, and report the gap.
+ *
+ * The bands are what a draftsperson would say looking over your shoulder:
+ *   · under 60 mm is a centreline against a face — that is not an error;
+ *   · 60 to 250 mm is a wall thickness that has drifted; worth a look;
+ *   · past 250 mm the wall is not where the drawing puts it.
+ *
+ * A wall with NOTHING on its axis is reported too, and is usually the more
+ * interesting finding: it means the model has invented a wall, or has run one
+ * straight through a step the drawing makes.
+ */
+const SCALE_OK = 0.06, SCALE_WATCH = 0.25;
+
+function wallsToScale(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  let matched = 0, worst = 0, worstId = '';
+  for (const w of WALLS) {
+    const horiz = Math.abs(w.z2 - w.z1) < Math.abs(w.x2 - w.x1);
+    const at = horiz ? (w.z1 + w.z2) / 2 : (w.x1 + w.x2) / 2;
+    const lo = Math.min(horiz ? w.x1 : w.z1, horiz ? w.x2 : w.z2);
+    const hi = Math.max(horiz ? w.x1 : w.z1, horiz ? w.x2 : w.z2);
+    let best: { d: number; at: number } | null = null;
+    for (const L of SHEET_LINES) {
+      if (L.floor !== w.floor || L.axis !== (horiz ? 'h' : 'v')) continue;
+      const a = Math.min(...L.spans.map(s => s[0])), b = Math.max(...L.spans.map(s => s[1]));
+      if (Math.max(0, Math.min(hi, b) - Math.max(lo, a)) < (hi - lo) * 0.4) continue;
+      const d = Math.abs(L.at - at);
+      if (!best || d < best.d) best = { d, at: L.at };
+    }
+    if (!best) {
+      out.push({
+        rule: 'scale/wall-off-sheet', severity: 'major',
+        title: `Wall ${w.id} has no line on the drawing`,
+        detail: `Nothing on SK1 runs along ${horiz ? 'z' : 'x'} = ${at.toFixed(2)} over ${lo.toFixed(2)}–${hi.toFixed(2)}. Either the wall is invented, or it has been modelled as one straight run where the drawing steps — which is what hid a 1.5 m error in the north wall.`,
+        authority: 'The drawing. A transcription cannot check a transcription.',
+        subject: w.id,
+      });
+      continue;
+    }
+    matched++;
+    if (best.d > worst) { worst = best.d; worstId = w.id; }
+    if (best.d > SCALE_OK) {
+      out.push({
+        rule: 'scale/wall-position',
+        severity: best.d > SCALE_WATCH ? 'major' : 'minor',
+        title: `Wall ${w.id} is ${(best.d * 1000).toFixed(0)} mm off the drawing`,
+        detail: `Modelled at ${horiz ? 'z' : 'x'} = ${at.toFixed(3)}; SK1 draws the face at ${best.at.toFixed(3)}. ${best.d > SCALE_WATCH ? 'That is more than a wall thickness — the wall is not where the drawing puts it.' : 'About a wall thickness: probably a centreline against a face, but confirm.'}`,
+        authority: 'SK1 measured at 1:100 — see PLANS.md',
+        subject: w.id,
+      });
+    }
+  }
+  if (!out.length) {
+    out.push({
+      rule: 'scale/wall-position', severity: 'pass',
+      title: `All ${matched} walls sit on the drawing`,
+      detail: `Worst offset ${(worst * 1000).toFixed(0)} mm (${worstId}), inside the ${(SCALE_OK * 1000).toFixed(0)} mm a centreline can differ from a face.`,
+      authority: 'SK1 measured at 1:100 — see PLANS.md',
+    });
+  }
+  return out;
+}
+
+/**
+ * The same question asked of rooms, because a room can be the right size and
+ * still be in the wrong place, and a client reads areas before they read walls.
+ * Every edge of every room should land on a measured line.
+ */
+function roomsToScale(): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  const edge = (floor: 0 | 1, axis: 'h' | 'v', at: number, lo: number, hi: number) => {
+    let best = Infinity;
+    for (const L of SHEET_LINES) {
+      if (L.floor !== floor || L.axis !== axis) continue;
+      const a = Math.min(...L.spans.map(s => s[0])), b = Math.max(...L.spans.map(s => s[1]));
+      if (Math.max(0, Math.min(hi, b) - Math.max(lo, a)) < (hi - lo) * 0.4) continue;
+      best = Math.min(best, Math.abs(L.at - at));
+    }
+    return best;
+  };
+  /**
+   * An open-plan boundary is a line on a room schedule, not a wall, so there is
+   * nothing on the drawing for it to land on. Skip an edge that another room in
+   * the same zone sits against — otherwise the living room is reported 3.6 m out
+   * because the notional line between it and the family room is not drawn, which
+   * is a rule crying wolf about the one thing it should be quiet about.
+   */
+  const openEdge = (r: Room, axis: 'h' | 'v', at: number) => ROOMS.some(o =>
+    o.id !== r.id && o.floor === r.floor && !!o.zone && o.zone === r.zone &&
+    (axis === 'v' ? Math.abs(o.x0 - at) < 0.15 || Math.abs(o.x1 - at) < 0.15
+                  : Math.abs(o.z0 - at) < 0.15 || Math.abs(o.z1 - at) < 0.15));
+  for (const r of ROOMS) {
+    if (r.outdoor || r.void) continue;
+    const gaps = [
+      openEdge(r, 'v', r.x0) ? NaN : edge(r.floor, 'v', r.x0, r.z0, r.z1),
+      openEdge(r, 'v', r.x1) ? NaN : edge(r.floor, 'v', r.x1, r.z0, r.z1),
+      openEdge(r, 'h', r.z0) ? NaN : edge(r.floor, 'h', r.z0, r.x0, r.x1),
+      openEdge(r, 'h', r.z1) ? NaN : edge(r.floor, 'h', r.z1, r.x0, r.x1),
+    ].filter(Number.isFinite);
+    if (!gaps.length) continue;
+    const worst = Math.max(...gaps);
+    if (worst > 0.3) {
+      out.push({
+        rule: 'scale/room-extents',
+        severity: worst > 0.6 ? 'major' : 'minor',
+        title: `${r.name} is ${(worst * 1000).toFixed(0)} mm off the drawing`,
+        detail: `${roomArea(r).toFixed(1)} m² as modelled, ${(r.x1 - r.x0).toFixed(2)} × ${(r.z1 - r.z0).toFixed(2)}. Its worst edge misses the nearest measured wall face by ${(worst * 1000).toFixed(0)} mm, so the area and every quantity taken off it are wrong by about that much.`,
+        authority: 'SK1 measured at 1:100 — see PLANS.md',
+        subject: r.id,
+      });
+    }
+  }
+  if (!out.length) {
+    out.push({
+      rule: 'scale/room-extents', severity: 'pass',
+      title: 'Every room sits on the drawing',
+      detail: 'All four edges of every enclosed room land on a wall face measured off SK1.',
+      authority: 'SK1 measured at 1:100 — see PLANS.md',
+    });
+  }
+  return out;
+}
+
 /** Run the whole rule set. */
 export function runDraftingRules(): RuleFinding[] {
   return [
@@ -569,5 +724,7 @@ export function runDraftingRules(): RuleFinding[] {
     ...roomProportions(),
     ...reachableOnFoot(),
     ...doorLandings(),
+    ...wallsToScale(),
+    ...roomsToScale(),
   ];
 }

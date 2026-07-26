@@ -7,3 +7,5 @@ tsconfig.tsbuildinfo
 
 # view captures are build artefacts; the hashes in baseline.json are the record
 tools/views/*.png
+__pycache__/
+*.pyc

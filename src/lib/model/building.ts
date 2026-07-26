@@ -73,16 +73,20 @@ export const ROOMS: Room[] = [
   // --- open-plan core: LIVING / FAMILY-DINING / KITCHEN / MEALS are ONE volume on the
   // plan (an 11,280 clear span). The line the drawing shows between them is
   // "BEAM OVER TO ENG DETAILS" — a downstand beam, not a wall. See BEAMS below.
-  R('g_liv','Living',0,6.7,11.7,5.6,10.9,'living','timberFloor',['sofa','sofa','rug','tv','curtain'],2,{tour:true,zone:'open'}),
-  R('g_fam','Family & Dining',0,11.7,17.7,5.6,10.9,'living','timberFloor',['dining','sofa','rug','curtain'],3,{tour:true,zone:'open'}),
+  R('g_liv','Living',0,6.7,11.7,5.6,9.33,'living','timberFloor',['sofa','sofa','rug','tv','curtain'],2,{tour:true,zone:'open'}),
+  R('g_fam','Family & Dining',0,11.7,15.38,5.6,9.33,'living','timberFloor',['dining','sofa','rug','curtain'],3,{tour:true,zone:'open'}),
   R('g_mea','Meals',0,6.7,11.6,0.1,5.6,'living','timberFloor',['dining','sofa','curtain'],2,{tour:true,zone:'open'}),
-  R('g_kit','Kitchen',0,11.6,16.0,0.1,5.6,'kitchen','timberFloor',['island','fridge','oven','bench'],2,{tour:true,zone:'open'}),
-  R('g_wip','Walk-in Pantry',0,16.0,17.7,0.1,2.8,'store','ceramicTile',['robe']),
-  R('g_srv','Servery',0,16.0,17.7,2.8,5.6,'kitchen','timberFloor',['bench'],0,{zone:'open'}),
-  R('g_pdr','Powder',0,17.91,20.09,5.6,7.42,'bath','ceramicTile',['bath']),
-  R('g_lin','Linen',0,17.91,18.55,7.42,9.56,'store','ceramicTile',[]),
-  R('g_wil','Walk-in Linen',0,18.55,20.09,7.42,9.56,'store','ceramicTile',['robe']),
-  R('g_ldy','Laundry',0,17.91,20.09,9.56,10.81,'laundry','ceramicTile',['bath']),
+  R('g_kit','Kitchen',0,11.6,15.38,0.1,5.13,'kitchen','timberFloor',['island','fridge','oven','bench'],2,{tour:true,zone:'open'}),
+  R('g_wip','Walk-in Pantry',0,15.38,17.58,0.39,2.99,'store','ceramicTile',['robe']),
+  R('g_srv','Servery',0,15.38,17.58,2.99,5.13,'kitchen','timberFloor',['bench'],0,{zone:'open'}),
+  R('g_pdr','Powder',0,15.38,17.94,7.33,9.33,'bath','ceramicTile',['bath']),
+  R('g_lin','Linen',0,15.38,17.05,5.21,7.33,'store','ceramicTile',[]),
+  R('g_wil','Walk-in Linen',0,17.05,19.00,5.21,7.33,'store','ceramicTile',['robe']),
+  // The lobby SK1 draws between the hall and the service rooms. Without it the
+  // laundry and the walk-in linen have to be entered through each other, which
+  // is how the model ended up with a door from the garage into the WIL.
+  R('g_lob','Laundry Lobby',0,19.00,20.09,5.13,7.33,'hall','ceramicTile',[]),
+  R('g_ldy','Laundry',0,17.94,20.04,7.33,10.74,'laundry','ceramicTile',['bath']),
   // Garage sized to the certified schedule: 32.80 m2 (5,990 x 5,480 internal).
   R('g_gar','Double Garage',0,20.09,25.93,5.13,10.81,'garage','slabOnGround',['car','car'],0,{tour:true}),
   R('g_gst','Guest Bedroom',0,17.9,21.54,0.39,3.00,'bed','carpet',['bed','robe','curtain'],1,{tour:true}),
@@ -127,7 +131,14 @@ const W = (id:string,floor:0|1,x1:number,z1:number,x2:number,z2:number,mat:strin
 export const WALLS: Wall[] = [
   // ground external shell — long axis runs rear(x=0) to street(x=28.14); +Z = north
   W('gw_s',0,6.6,0,28.03,0,'brickVeneerR20',true,'S'),
-  W('gw_n',0,6.6,11,28.03,11,'brickVeneerR20',true,'N'),
+  // The north wall STEPS. It runs at z 9,450 from the west end to x 17,900, and
+  // only the laundry and garage block carries on north to z 10,850. Modelled as
+  // one straight run at z 11,000 it stretched the living and family rooms 1.5 m
+  // too deep and left the whole service block nowhere to sit — which is what put
+  // the powder room on the wrong side of the linen press.
+  W('gw_n1',0,6.6,9.45,17.90,9.45,'brickVeneerR20',true,'N'),
+  W('gw_n2',0,17.90,9.45,17.90,10.90,'brickVeneerR20',true,'E'),
+  W('gw_n3',0,17.90,10.90,28.03,10.90,'brickVeneerR20',true,'N'),
   W('gw_e1',0,28.03,0,28.03,3.5,'brickVeneerR20',true,'E'),
   W('gw_w',0,6.6,0,6.6,11,'brickVeneerR20',true,'W'),
   // ground internal
@@ -138,10 +149,17 @@ export const WALLS: Wall[] = [
   W('gi_20',0,25.93,5.13,25.93,10.81,'brickVeneerR20',false,'E'),
   // NOTE: there is deliberately NO wall at x=11.6 or z=5.7 — the plan's 11,280 clear
   // span makes Living/Family-Dining/Kitchen/Meals a single open-plan volume.
-  W('gi_5',0,16.0,0.1,16.0,2.8,'studWall',false,'E'),
-  W('gi_6',0,16.0,2.8,17.7,2.8,'studWall',false,'N'),
-  W('gi_7',0,17.78,0,17.78,2.92,'studWall',false,'E'),
-  W('gi_8',0,17.78,5.6,17.78,11,'studWallAcoustic',false,'E'),
+  W('gi_5',0,15.38,0.39,15.38,2.99,'studWall',false,'E'),
+  W('gi_6',0,15.38,2.99,17.58,2.99,'studWall',false,'N'),
+  W('gi_7',0,17.58,0.39,17.58,2.99,'studWall',false,'E'),
+  // The wall between the powder room and the laundry, measured at x 17,940 and
+  // running from the linen wall right up to the north face.
+  W('gi_8',0,17.94,7.33,17.94,10.74,'studWallAcoustic',false,'E'),
+  // West wall of the whole service block: one run, z 3,270 to the north face.
+  W('gi_21',0,15.38,3.27,15.38,9.33,'studWall',false,'E'),
+  W('gi_22',0,17.05,5.21,17.05,7.33,'studWall',false,'E'),
+  W('gi_23',0,19.00,5.21,19.00,7.33,'studWall',false,'E'),
+  W('gi_24',0,15.38,5.13,19.03,5.13,'studWall',false,'N'),
   // Measured off SK1: this wall runs z 3,000 and stops at x 23,440, where a
   // north-south wall picks up and the boundary steps 530 north to serve
   // bedroom 5. Modelled as one straight run at z 2,920 all the way to the
@@ -150,10 +168,9 @@ export const WALLS: Wall[] = [
   W('gi_9b',0,23.44,3.53,25.93,3.53,'studWall',false,'N'),
   W('gi_9c',0,23.44,0.39,23.44,3.53,'studWall',false,'E'),
   W('gi_10',0,20.09,5.13,20.09,11,'studWallAcoustic',false,'E'),
-  W('gi_11',0,17.85,7.42,20.09,7.42,'studWall',false,'N'),
-  W('gi_18',0,17.85,9.56,20.09,9.56,'studWall',false,'N'),
+  W('gi_11',0,15.38,7.33,20.04,7.33,'studWall',false,'N'),
+  
   W('gi_12',0,20.09,5.13,25.93,5.13,'studWallAcoustic',false,'N'),
-  W('gi_19',0,18.55,7.42,18.55,9.56,'studWall',false,'E'),
   W('gi_13',0,21.54,0.39,21.54,3.00,'studWall',false,'E'),
   W('gi_14',0,23.0,0.22,23.0,2.92,'studWall',false,'E'),
   W('gi_15',0,21.4,1.95,23.0,1.95,'studWall',false,'N'),
@@ -254,11 +271,32 @@ export const OPENINGS: Opening[] = [
   O('d_g1',0,'gi_9',18.76,3.00,0.72,2.34,0,'door','doorSolid',0.9,'g_hal','g_gst','N'),
   O('d_g2',0,'gi_9b',24.6,3.53,0.9,2.34,0,'door','doorSolid',0.9,'g_ent','g_bd5','N'),
   O('d_g3',0,'gi_13',21.54,1.2,0.8,2.34,0,'door','doorSolid',0.9,'g_gst','g_en2','E'),
-  O('d_g4',0,'gi_11',19.4,7.42,0.82,2.34,0,'door','doorSolid',0.9,'g_pdr','g_wil','N'),
-  O('d_g4b',0,'gi_18',19.4,9.56,0.82,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
-  O('d_g4c',0,'gi_19',18.55,8.5,0.82,2.34,0,'door','doorSolid',0.9,'g_wil','g_lin','E'),
-  O('d_g4d',0,'gi_8',17.78,6.4,0.9,2.34,0,'door','doorSolid',0.9,'g_fam','g_pdr','E'),
-  O('d_g5',0,'gi_10',20.09,6.6,0.85,2.34,0,'door','doorSolid',0.9,'g_gar','g_pdr','E'),
+  O('d_g4',0,'gi_11',19.44,7.33,0.82,2.34,0,'door','doorSolid',0.9,'g_lob','g_ldy','N'),
+  O('d_g4b',0,'gi_11',18.56,7.33,0.87,2.34,0,'door','doorSolid',0.9,'g_wil','g_ldy','N'),
+  // LINEN opens to the family room through the 1,700 the sheet dimensions, with
+  // the two 820 leaves it labels. It is a press, not a room you walk through.
+  O('d_g4c',0,'gi_21',15.38,6.27,1.70,2.34,0,'cased','doorSolid',1,'g_fam','g_lin','E'),
+  /**
+   * INFERENCE, flagged as one: the open-plan core has to reach the hall.
+   *
+   * Redline refused the model without it — seven rooms unreachable, which is the
+   * rule doing exactly its job. On SK1 the wall at x 15,400 reads as continuous
+   * from z 3,270 north, and the servery strip between it and the hall is drawn
+   * open, with "BEAM OVER TO ENG DETAILS" across it and no door symbol anywhere.
+   * A kitchen you can only enter through a linen press is not a plan, so the
+   * likeliest reading is that this stretch is a cased opening under that beam and
+   * the line is the lintel. Confirm against the sheet before it is built from.
+   */
+  O('o_g9',0,'gi_21',15.38,4.20,1.60,2.34,0,'cased','doorSolid',1,'g_kit','g_srv','E'),
+  // The powder room is entered off the laundry lobby end of the hall, not from
+  // the family room — there is no opening in the family room's east wall.
+  O('d_g4d',0,'gi_11',16.60,7.33,0.87,2.34,0,'door','doorSolid',0.9,'g_lin','g_pdr','N'),
+  // SK1 shows NO door between the garage and the service rooms — the garage's
+  // only way into the house is the 820 to the hall. What was modelled here read
+  // in the render as a door from the walk-in linen straight into the garage.
+  // The lobby is reached from the hall, through the 1,010 gap the sheet leaves
+  // in the wall at z 5,130.
+  O('o_g5',0,'gi_24',19.03,5.13,1.01,2.34,0,'cased','doorSolid',1,'g_hal','g_lob','N'),
   // Garage to hall. SK1 labels this "820" and draws a single swinging leaf; the
   // jambs measure to x 20.17 and x 21.03 at 1:100. It had been carrying a 2.4 m
   // cased opening at x 22.5 — three times the width, two metres out of position,
@@ -266,7 +304,7 @@ export const OPENINGS: Opening[] = [
   // any case: NCC Vol Two requires the garage/dwelling connection to be a
   // self-closing solid-core doorset, which is what "820" on the sheet means.
   O('d_g6',0,'gi_12',20.60,5.13,0.86,2.34,0,'door','doorSolid',0.9,'g_gar','g_hal','N'),
-  O('d_g8',0,'gi_5',16.0,1.6,0.85,2.34,0,'door','doorSolid',0.9,'g_kit','g_wip','E'),
+  O('d_g8',0,'gi_5',15.38,1.6,0.72,2.34,0,'door','doorSolid',0.9,'g_kit','g_wip','E'),
   // first doors
   O('d_bal',1,'fi_1',25.95,3.6,2.2,2.15,0,'slider','glazingSingle',0.5,'f_pri','f_bal','E'),
   O('d_f1',1,'fi_3',11.6,3.6,0.9,2.34,0,'door','doorSolid',0.9,'f_sit','f_std','E'),
